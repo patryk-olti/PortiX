@@ -108,29 +108,142 @@ button:hover {
   transform: translateY(-2px);
 }
 
-.features {
+.insights {
+  display: grid;
+  gap: 1rem;
+}
+
+.insights p {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--muted);
+}
+
+.insights-highlights {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+
+.section-header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.section-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ideas {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.idea-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
 }
 
-.feature {
+.idea-card {
   background: var(--surface);
   border-radius: 20px;
   padding: 2rem;
   border: 1px solid rgb(148 163 184 / 0.14);
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.feature h2 {
+.idea-card h3 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
 }
 
-.feature p {
+.idea-summary {
   margin: 0;
   color: var(--muted);
+}
+
+.idea-card dl {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.idea-card dl div {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.idea-card dt {
+  font-weight: 600;
+}
+
+.idea-card dd {
+  margin: 0;
+}
+
+.portfolio {
+  display: grid;
+  gap: 1.75rem;
+  background: var(--surface-strong);
+  border-radius: 24px;
+  padding: 2.5rem;
+  border: 1px solid rgb(148 163 184 / 0.2);
+}
+
+.portfolio-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+}
+
+.metric {
+  background: rgb(15 23 42 / 0.7);
+  border-radius: 18px;
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid rgb(148 163 184 / 0.14);
+}
+
+.metric .label {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.metric .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.metric .change {
+  font-size: 0.95rem;
+}
+
+.metric .change.positive {
+  color: #34d399;
+}
+
+.metric .change.neutral {
+  color: var(--muted);
+}
+
+.metric .change.warning {
+  color: #facc15;
+}
+
+.portfolio-notes {
+  color: var(--muted);
+  background: rgb(15 23 42 / 0.6);
+  border-radius: 18px;
+  padding: 1.5rem;
+  border: 1px solid rgb(148 163 184 / 0.12);
 }
 
 .cta {
@@ -189,6 +302,16 @@ button:hover {
 
   button {
     width: 100%;
+  }
+
+  .portfolio {
+    padding: 2rem 1.5rem;
+  }
+
+  .idea-card dl div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
   }
 
   .footer {
