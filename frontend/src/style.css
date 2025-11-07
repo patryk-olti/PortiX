@@ -120,6 +120,33 @@ a {
   gap: 1.25rem;
 }
 
+.portfolio-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgb(148 163 184 / 0.12);
+  width: fit-content;
+}
+
+.portfolio-filters label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.portfolio-filters select {
+  background: var(--surface-strong);
+  color: #f8fafc;
+  border: 1px solid rgb(148 163 184 / 0.2);
+  border-radius: 10px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.95rem;
+}
+
 .metric {
   background: var(--surface);
   border-radius: 18px;
@@ -145,6 +172,8 @@ a {
 
 .portfolio-table-wrapper {
   overflow-x: auto;
+  max-height: 260px;
+  overflow-y: auto;
   border-radius: 18px;
   border: 1px solid rgb(148 163 184 / 0.12);
   background: var(--surface-soft);
@@ -218,6 +247,14 @@ a {
 
   .portfolio {
     padding: 2rem 1.5rem;
+  }
+
+  .portfolio-filters {
+    width: 100%;
+  }
+
+  .portfolio-table-wrapper {
+    max-height: 220px;
   }
 
   .footer {

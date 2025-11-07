@@ -36,52 +36,62 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <span class="change neutral">29% gotówki</span>
         </article>
       </div>
+      <div class="portfolio-filters">
+        <label for="category-filter">Filtr kategorii</label>
+        <select id="category-filter">
+          <option value="all">Wszystkie</option>
+          <option value="stock">Akcje</option>
+          <option value="commodity">Surowiec</option>
+          <option value="hedge">Zabezpieczenie</option>
+          <option value="cash">Gotówka</option>
+        </select>
+      </div>
       <div class="portfolio-table-wrapper">
-        <table class="portfolio-table">
+        <table class="portfolio-table" aria-describedby="category-filter">
           <thead>
             <tr>
               <th>Pozycja</th>
               <th>Kategoria</th>
-              <th>Waga</th>
+              <th>Cena zakupu</th>
+              <th>Aktualny kurs</th>
               <th>Zwrot</th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
+            <tr data-category="stock">
               <td>SOXX ETF</td>
-              <td>Półprzewodniki</td>
-              <td>18%</td>
+              <td>Akcje</td>
+              <td>422.50 USD</td>
+              <td>462.90 USD</td>
               <td class="positive">+9.4%</td>
-              <td>Aktywna</td>
             </tr>
-            <tr>
+            <tr data-category="stock">
               <td>MSFT</td>
-              <td>Technologia</td>
-              <td>12%</td>
+              <td>Akcje</td>
+              <td>320.10 USD</td>
+              <td>339.70 USD</td>
               <td class="positive">+6.1%</td>
-              <td>Akumulacja</td>
             </tr>
-            <tr>
+            <tr data-category="hedge">
               <td>DAX Futures</td>
-              <td>Hedge</td>
-              <td>8%</td>
-              <td class="negative">-1.2%</td>
               <td>Zabezpieczenie</td>
+              <td>18 250 pkt</td>
+              <td>18 030 pkt</td>
+              <td class="negative">-1.2%</td>
             </tr>
-            <tr>
+            <tr data-category="commodity">
               <td>Gold Spot</td>
-              <td>Surowce</td>
-              <td>7%</td>
+              <td>Surowiec</td>
+              <td>1 962 USD</td>
+              <td>2 036 USD</td>
               <td class="positive">+3.8%</td>
-              <td>Aktywna</td>
             </tr>
-            <tr>
+            <tr data-category="cash">
               <td>Cash PLN</td>
-              <td>Płynność</td>
-              <td>29%</td>
+              <td>Gotówka</td>
+              <td>1.00</td>
+              <td>1.00</td>
               <td class="neutral">0.0%</td>
-              <td>Rezerwa</td>
             </tr>
           </tbody>
         </table>
@@ -99,3 +109,21 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </nav>
   </footer>
 `
+
+const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter')
+const portfolioRows = Array.from(
+  document.querySelectorAll<HTMLTableRowElement>('.portfolio-table tbody tr'),
+)
+
+categoryFilter?.addEventListener('change', (event) => {
+  const value = (event.target as HTMLSelectElement).value
+
+  portfolioRows.forEach((row) => {
+    if (value === 'all') {
+      row.style.display = ''
+      return
+    }
+
+    row.style.display = row.dataset.category === value ? '' : 'none'
+  })
+})
