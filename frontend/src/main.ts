@@ -55,6 +55,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <th>Cena zakupu</th>
               <th>Aktualny kurs</th>
               <th>Zwrot</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -64,6 +65,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <td>422.50 USD</td>
               <td>462.90 USD</td>
               <td class="positive">+9.4%</td>
+              <td>
+                <a class="details-link" href="#">Szczegóły</a>
+              </td>
             </tr>
             <tr data-category="stock">
               <td>MSFT</td>
@@ -71,6 +75,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <td>320.10 USD</td>
               <td>339.70 USD</td>
               <td class="positive">+6.1%</td>
+              <td>
+                <a class="details-link" href="#">Szczegóły</a>
+              </td>
             </tr>
             <tr data-category="hedge">
               <td>DAX Futures</td>
@@ -78,6 +85,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <td>18 250 pkt</td>
               <td>18 030 pkt</td>
               <td class="negative">-1.2%</td>
+              <td>
+                <a class="details-link" href="#">Szczegóły</a>
+              </td>
             </tr>
             <tr data-category="commodity">
               <td>Gold Spot</td>
@@ -85,6 +95,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <td>1 962 USD</td>
               <td>2 036 USD</td>
               <td class="positive">+3.8%</td>
+              <td>
+                <a class="details-link" href="#">Szczegóły</a>
+              </td>
             </tr>
             <tr data-category="cash">
               <td>Cash PLN</td>
@@ -92,6 +105,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <td>1.00</td>
               <td>1.00</td>
               <td class="neutral">0.0%</td>
+              <td>
+                <a class="details-link" href="#">Szczegóły</a>
+              </td>
             </tr>
           </tbody>
         </table>

@@ -190,6 +190,7 @@ a {
   padding: 1rem 1.25rem;
   text-align: left;
   border-bottom: 1px solid rgb(148 163 184 / 0.12);
+  background: rgba(16, 26, 44, 0.86);
 }
 
 .portfolio-table thead th {
@@ -197,6 +198,10 @@ a {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgb(226 232 240 / 0.85);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(15, 23, 39, 0.95);
 }
 
 .portfolio-table tbody td {
@@ -206,6 +211,26 @@ a {
 
 .portfolio-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.details-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgb(96 165 250 / 0.35);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  min-width: 110px;
+}
+
+.details-link:hover {
+  background-color: rgb(96 165 250 / 0.12);
+  border-color: rgb(96 165 250 / 0.55);
+  color: var(--accent-strong);
 }
 
 .positive {
