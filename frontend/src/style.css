@@ -4,16 +4,18 @@
   line-height: 1.5;
   font-weight: 400;
   color: #f8fafc;
-  background-color: #0f172a;
+  background-color: #0b1120;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: dark;
 
-  --surface: rgb(15 23 42 / 0.6);
-  --surface-strong: rgb(15 23 42 / 0.9);
-  --accent: #38bdf8;
+  --surface: #10192b;
+  --surface-strong: #0f1727;
+  --surface-soft: #101a2c;
+  --accent: #60a5fa;
+  --accent-strong: #2563eb;
   --muted: #94a3b8;
 }
 
@@ -24,7 +26,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: radial-gradient(circle at top, #1e293b, #0f172a 55%);
+  background-color: #0b1120;
 }
 
 a {
@@ -51,12 +53,9 @@ a {
   text-align: left;
   padding: 3.5rem 3rem;
   border-radius: 28px;
-  border: 1px solid rgb(148 163 184 / 0.16);
-  background:
-    radial-gradient(120% 120% at 10% 10%, rgb(56 189 248 / 0.35), transparent 60%),
-    radial-gradient(120% 120% at 90% 0%, rgb(59 130 246 / 0.35), transparent 55%),
-    rgb(15 23 42 / 0.85);
-  box-shadow: 0 30px 60px rgb(8 47 73 / 0.45);
+  border: 1px solid rgb(148 163 184 / 0.12);
+  background-color: var(--surface-strong);
+  box-shadow: 0 20px 50px rgb(8 47 73 / 0.35);
 }
 
 .app-name {
@@ -64,20 +63,36 @@ a {
   font-size: clamp(3rem, 6vw, 4rem);
   font-weight: 700;
   letter-spacing: -0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-name-primary {
+  color: #f8fafc;
+}
+
+.app-name-secondary {
+  padding: 0.25rem 0.9rem;
+  border-radius: 999px;
+  background-color: var(--accent);
+  color: #08213f;
+  font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+  font-weight: 600;
 }
 
 .hero-subtitle {
   margin: 0;
-  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
   font-weight: 600;
-  color: #e2e8f0;
+  color: rgb(226 232 240 / 0.75);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.2em;
 }
 
 .hero .lede {
   max-width: 54ch;
-  color: rgb(226 232 240 / 0.85);
+  color: rgb(226 232 240 / 0.82);
 }
 
 .section-header {
@@ -106,12 +121,12 @@ a {
 }
 
 .metric {
-  background: rgb(15 23 42 / 0.7);
+  background: var(--surface);
   border-radius: 18px;
   padding: 1.5rem;
   display: grid;
   gap: 0.4rem;
-  border: 1px solid rgb(148 163 184 / 0.14);
+  border: 1px solid rgb(148 163 184 / 0.1);
 }
 
 .metric .label {
@@ -131,8 +146,8 @@ a {
 .portfolio-table-wrapper {
   overflow-x: auto;
   border-radius: 18px;
-  border: 1px solid rgb(148 163 184 / 0.14);
-  background: rgb(15 23 42 / 0.7);
+  border: 1px solid rgb(148 163 184 / 0.12);
+  background: var(--surface-soft);
 }
 
 .portfolio-table {
@@ -197,7 +212,8 @@ a {
   }
 
   .hero {
-    padding: 2.5rem 1.75rem;
+    padding: 2.75rem 1.85rem;
+    gap: 1.2rem;
   }
 
   .portfolio {

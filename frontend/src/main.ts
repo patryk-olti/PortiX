@@ -3,7 +3,10 @@ import './style.css'
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="page">
     <section class="hero">
-      <h1 class="app-name">PortiX Analytics</h1>
+      <h1 class="app-name">
+        <span class="app-name-primary">PortiX</span>
+        <span class="app-name-secondary">Analytics</span>
+      </h1>
       <p class="hero-subtitle">Techniczne spojrzenie na rynek</p>
       <p class="lede">
         Monitorujemy zmienność, przepływy kapitału i ryzyko, aby precyzyjnie
@@ -92,7 +95,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <a href="#">Status projektu</a>
       <a href="#">Dokumentacja</a>
       <a href="#">Kontakt</a>
-      <a href="#">Logowanie administratora</a>
+      <a href="#">Logowanie</a>
     </nav>
   </footer>
 `
