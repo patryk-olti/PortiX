@@ -1,83 +1,12 @@
-type StatusUpdate = {
-  id: string
-  title: string
-  date: string
-  tag: string
-  summary: string
-  importance: 'critical' | 'important' | 'informational'
-}
+import { getStatusUpdates } from './store'
+import type { StatusUpdate } from './types'
 
 const UPDATES_PER_PAGE = 6
 
-const statusUpdates: StatusUpdate[] = [
-  {
-    id: 'release-1',
-    title: 'Wdrożenie PortiX 1.2',
-    date: '2025-10-12',
-    tag: 'Release',
-    summary:
-      'Nowa wersja systemu PortiX wprowadza zestaw rozszerzonych metryk ryzyka, w tym wskaźniki ekspozycji sektorowej oraz scenariusze stresowe. Aktualizacja obejmuje również udoskonalony wykres TradingView z większą liczbą interwałów i lepszą optymalizacją wydajności.',
-    importance: 'important',
-  },
-  {
-    id: 'roadmap-1',
-    title: 'Planowany moduł alertów',
-    date: '2025-09-28',
-    tag: 'Roadmap',
-    summary:
-      'Zespół kończy prace nad inteligentnymi alertami wolumenu, które pozwolą na natychmiastowe powiadomienia o gwałtownych zmianach aktywności rynkowej. W kolejnej iteracji moduł obejmie również alerty scenariuszy stresowych dla poszczególnych klas aktywów.',
-    importance: 'informational',
-  },
-  {
-    id: 'incident-1',
-    title: 'Incydent infrastrukturalny',
-    date: '2025-09-18',
-    tag: 'Incident',
-    summary:
-      'Krótka niedostępność danych rynkowych spowodowana konserwacją serwerów wpłynęła na aktualizację wykresów w godzinach popołudniowych. Zespół infrastruktury wdrożył dodatkowe monitorowanie, aby zminimalizować ryzyko podobnych przerw w przyszłości.',
-    importance: 'critical',
-  },
-  {
-    id: 'security-1',
-    title: 'Audyt bezpieczeństwa PortiX',
-    date: '2025-09-05',
-    tag: 'Security',
-    summary:
-      'Zewnętrzny audyt potwierdził zgodność PortiX z wewnętrznymi politykami bezpieczeństwa i standardami branżowymi. Wdrożyliśmy dwa rekomendowane usprawnienia konfiguracji SIEM, aby szybciej wykrywać nietypowe zachowania użytkowników.',
-    importance: 'important',
-  },
-  {
-    id: 'data-1',
-    title: 'Integracja z nowymi dostawcami danych',
-    date: '2025-08-17',
-    tag: 'Data',
-    summary:
-      'Dodaliśmy wsparcie dla strumieniowych danych z rynków azjatyckich, rozszerzając pokrycie geograficzne PortiX oraz poprawiając ciągłość notowań w nocnych godzinach CET. Nowa integracja obejmuje również dane makroekonomiczne, przydatne do analiz międzyrynkowych.',
-    importance: 'informational',
-  },
-  {
-    id: 'ux-1',
-    title: 'Warsztaty UX z klientami',
-    date: '2025-08-03',
-    tag: 'Research',
-    summary:
-      'Podczas warsztatów z kluczowymi klientami zebraliśmy szczegółowy feedback na temat ergonomii panelu i możliwości personalizacji kokpitów. Wnioski posłużą do zaprojektowania nowej sekcji skrótów oraz przebudowy widoku filtrów.',
-    importance: 'important',
-  },
-  {
-    id: 'foundation-1',
-    title: 'Rozpoczęcie budowy strony PortiX',
-    date: '2025-07-12',
-    tag: 'Milestone',
-    summary:
-      'Zespół frontend oraz UX rozpoczął prace nad warstwą prezentacyjną platformy PortiX, koncentrując się na spójności języka wizualnego. Pierwsza iteracja obejmuje wdrożenie strony głównej oraz fundamentów systemu komponentów UI.',
-    importance: 'informational',
-  },
-]
-
 export function renderStatus(): string {
-  const totalPages = Math.ceil(statusUpdates.length / UPDATES_PER_PAGE)
-  const visibleUpdates = statusUpdates.slice(0, UPDATES_PER_PAGE)
+  const updates = getStatusUpdates()
+  const totalPages = Math.ceil(updates.length / UPDATES_PER_PAGE) || 1
+  const visibleUpdates = updates.slice(0, UPDATES_PER_PAGE)
 
   return `
     <main class="page status-page">
@@ -132,13 +61,14 @@ export function setupStatusHandlers(): void {
     return
   }
 
-  const totalPages = Math.ceil(statusUpdates.length / UPDATES_PER_PAGE)
+  const updates = getStatusUpdates()
+  const totalPages = Math.ceil(updates.length / UPDATES_PER_PAGE) || 1
   let currentPage = 1
 
   const renderPage = (page: number, shouldScroll = true) => {
     currentPage = page
     const start = (page - 1) * UPDATES_PER_PAGE
-    const pageItems = statusUpdates.slice(start, start + UPDATES_PER_PAGE)
+    const pageItems = updates.slice(start, start + UPDATES_PER_PAGE)
     list.innerHTML = renderStatusCards(pageItems)
     indicator.textContent = `Strona ${currentPage} z ${totalPages}`
     prevButton.disabled = currentPage === 1
@@ -184,6 +114,9 @@ function renderStatusCards(items: StatusUpdate[]): string {
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) {
+    return dateString
+  }
   return date.toLocaleDateString('pl-PL', {
     year: 'numeric',
     month: 'long',

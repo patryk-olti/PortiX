@@ -20,6 +20,9 @@ export interface TechnicalAnalysis {
     movingAverage: string;
   };
   summary: string;
+  completed?: boolean;
+  completionNote?: string;
+  completionDate?: string;
 }
 
 export interface Modification {
@@ -37,5 +40,13 @@ export interface Insight {
   title: string;
   content: string;
   impact: 'positive' | 'negative' | 'neutral';
+}
+
+export interface StatusUpdate {
+  id: string;
+  title: string;
+  date: string;
+  summary: string;
+  importance: 'critical' | 'important' | 'informational';
 }
 

@@ -4,6 +4,7 @@ import { renderPositionDetails, setupPositionDetailsHandlers } from './position-
 import { renderLogin, setupLoginHandlers } from './login'
 import { renderAdmin, setupAdminHandlers } from './admin'
 import { renderStatus, setupStatusHandlers } from './status'
+import { subscribe } from './store'
 
 function getRoute(): { path: string; params: Record<string, string> } {
   const hash = window.location.hash.slice(1)
@@ -94,3 +95,7 @@ if (document.readyState === 'loading') {
 
 // Listen for hash changes
 window.addEventListener('hashchange', render)
+
+subscribe(() => {
+  render()
+})

@@ -1,6 +1,7 @@
-import { positions } from './data';
+import { getPositions } from './store';
 
 export function renderHome(): string {
+  const positions = getPositions();
   return `
     <main class="page">
       <section class="hero">
@@ -23,7 +24,6 @@ export function renderHome(): string {
       <section class="portfolio">
         <div class="section-header">
           <h2>Stan portfela PortiX</h2>
-          <p>Monitorujemy alokację kapitału i reagujemy na zmiany struktury rynku.</p>
         </div>
         <div class="portfolio-overview">
           <article class="metric">
@@ -65,18 +65,28 @@ export function renderHome(): string {
               </tr>
             </thead>
             <tbody>
-              ${positions.map(position => `
+              ${positions
+                .map(
+                  position => `
                 <tr data-category="${position.category}">
                   <td>${position.name}</td>
                   <td>${position.categoryName}</td>
                   <td>${position.purchasePrice}</td>
                   <td>${position.currentPrice}</td>
-                  <td class="${position.returnValue > 0 ? 'positive' : position.returnValue < 0 ? 'negative' : 'neutral'}">${position.return}</td>
+                  <td class="${
+                    position.returnValue > 0
+                      ? 'positive'
+                      : position.returnValue < 0
+                        ? 'negative'
+                        : 'neutral'
+                  }">${position.return}</td>
                   <td>
                     <a class="details-link" href="#/position/${position.id}" data-position-id="${position.id}">Szczegóły</a>
                   </td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,4 @@
-import { getPositionById, getTechnicalAnalysis, getModifications, getInsights } from './data';
+import { getPositionById, getTechnicalAnalysis, getModifications, getInsights } from './store';
 
 export function renderPositionDetails(positionId: string): string {
   const position = getPositionById(positionId);
@@ -20,6 +20,9 @@ export function renderPositionDetails(positionId: string): string {
 
   const trendClass = analysis?.trend === 'bullish' ? 'positive' : analysis?.trend === 'bearish' ? 'negative' : 'neutral';
   const trendText = analysis?.trend === 'bullish' ? 'Wzrostowy' : analysis?.trend === 'bearish' ? 'Spadkowy' : 'Neutralny';
+  const completionBadge = analysis?.completed
+    ? `<span class="analysis-status completed">Zrealizowano ${analysis.completionDate ? formatDate(analysis.completionDate) : ''}</span>`
+    : '<span class="analysis-status open">Aktywna analiza</span>';
 
   return `
     <nav class="detail-nav">
@@ -34,6 +37,7 @@ export function renderPositionDetails(positionId: string): string {
         <div class="position-title">
           <h1>${position.name}</h1>
           <span class="position-symbol">${position.symbol}</span>
+          ${completionBadge}
         </div>
         <div class="position-stats">
           <div class="stat-item">
@@ -50,7 +54,9 @@ export function renderPositionDetails(positionId: string): string {
           </div>
           <div class="stat-item">
             <span class="stat-label">Zwrot</span>
-            <span class="stat-value ${position.returnValue > 0 ? 'positive' : position.returnValue < 0 ? 'negative' : 'neutral'}">${position.return}</span>
+            <span class="stat-value ${
+              position.returnValue > 0 ? 'positive' : position.returnValue < 0 ? 'negative' : 'neutral'
+            }">${position.return}</span>
           </div>
         </div>
       </section>
@@ -85,20 +91,21 @@ export function renderPositionDetails(positionId: string): string {
           </div>
           <div class="analysis-card">
             <span class="analysis-label">RSI</span>
-            <span class="analysis-value">${analysis?.indicators.rsi || 'N/A'}</span>
+            <span class="analysis-value">${analysis?.indicators?.rsi ?? 'N/A'}</span>
           </div>
           <div class="analysis-card">
             <span class="analysis-label">MACD</span>
-            <span class="analysis-value">${analysis?.indicators.macd || 'N/A'}</span>
+            <span class="analysis-value">${analysis?.indicators?.macd ?? 'N/A'}</span>
           </div>
           <div class="analysis-card">
             <span class="analysis-label">Średnia krocząca</span>
-            <span class="analysis-value">${analysis?.indicators.movingAverage || 'N/A'}</span>
+            <span class="analysis-value">${analysis?.indicators?.movingAverage ?? 'N/A'}</span>
           </div>
         </div>
         <div class="analysis-summary">
           <h3>Podsumowanie analizy</h3>
           <p>${analysis?.summary || 'Brak dostępnej analizy technicznej.'}</p>
+          ${analysis?.completed && analysis.completionNote ? `<p class="analysis-completion-note">Powód realizacji: ${analysis.completionNote}</p>` : ''}
         </div>
       </section>
 
@@ -108,7 +115,11 @@ export function renderPositionDetails(positionId: string): string {
           <p>Wszystkie transakcje i zmiany pozycji</p>
         </div>
         <div class="modifications-list">
-          ${modifications.length > 0 ? modifications.map(mod => `
+          ${
+            modifications.length > 0
+              ? modifications
+                  .map(
+                    mod => `
             <div class="modification-item">
               <div class="modification-header">
                 <span class="modification-type ${mod.type}">${getModificationTypeLabel(mod.type)}</span>
@@ -122,7 +133,11 @@ export function renderPositionDetails(positionId: string): string {
                 </div>
               </div>
             </div>
-          `).join('') : '<p class="empty-state">Brak historii modyfikacji.</p>'}
+          `,
+                  )
+                  .join('')
+              : '<p class="empty-state">Brak historii modyfikacji.</p>'
+          }
         </div>
       </section>
 
@@ -132,7 +147,11 @@ export function renderPositionDetails(positionId: string): string {
           <p>Analiza sytuacji rynkowej i perspektywy</p>
         </div>
         <div class="insights-list">
-          ${insights.length > 0 ? insights.map(insight => `
+          ${
+            insights.length > 0
+              ? insights
+                  .map(
+                    insight => `
             <div class="insight-item">
               <div class="insight-header">
                 <h3 class="insight-title">${insight.title}</h3>
@@ -141,7 +160,11 @@ export function renderPositionDetails(positionId: string): string {
               <p class="insight-content">${insight.content}</p>
               <span class="insight-impact ${insight.impact}">${getImpactLabel(insight.impact)}</span>
             </div>
-          `).join('') : '<p class="empty-state">Brak dostępnych wniosków.</p>'}
+          `,
+                  )
+                  .join('')
+              : '<p class="empty-state">Brak dostępnych wniosków.</p>'
+          }
         </div>
       </section>
     </main>

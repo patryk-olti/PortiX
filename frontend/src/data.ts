@@ -1,6 +1,6 @@
-import type { Position, TechnicalAnalysis, Modification, Insight } from './types';
+import type { Position, TechnicalAnalysis, Modification, Insight, StatusUpdate } from './types';
 
-export const positions: Position[] = [
+export const initialPositions: Position[] = [
   {
     id: 'soxx',
     symbol: 'SOXX',
@@ -58,7 +58,7 @@ export const positions: Position[] = [
   },
 ];
 
-export const technicalAnalysis: Record<string, TechnicalAnalysis> = {
+export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
   soxx: {
     trend: 'bullish',
     support: '450.00 USD',
@@ -68,7 +68,8 @@ export const technicalAnalysis: Record<string, TechnicalAnalysis> = {
       macd: 'Bullish crossover',
       movingAverage: 'Price above 50-day MA',
     },
-    summary: 'SOXX wykazuje silny trend wzrostowy. RSI na poziomie 68 wskazuje na możliwość kontynuacji wzrostu, choć zbliża się do strefy wykupienia. MACD pokazuje bullish crossover, co potwierdza pozytywny momentum. Cena znajduje się powyżej 50-dniowej średniej kroczącej, co wspiera trend wzrostowy.',
+    summary:
+      'SOXX wykazuje silny trend wzrostowy. RSI na poziomie 68 wskazuje na możliwość kontynuacji wzrostu, choć zbliża się do strefy wykupienia. MACD pokazuje bullish crossover, co potwierdza pozytywny momentum. Cena znajduje się powyżej 50-dniowej średniej kroczącej, co wspiera trend wzrostowy.',
   },
   msft: {
     trend: 'bullish',
@@ -79,7 +80,8 @@ export const technicalAnalysis: Record<string, TechnicalAnalysis> = {
       macd: 'Positive momentum',
       movingAverage: 'Price above all major MAs',
     },
-    summary: 'Microsoft kontynuuje silny trend wzrostowy. Wskaźniki techniczne potwierdzają pozytywny momentum z RSI na poziomie 62. Cena znajduje się powyżej wszystkich głównych średnich kroczących, co wskazuje na silną strukturę trendu. Poziomy wsparcia i oporu sugerują dalszy potencjał wzrostowy.',
+    summary:
+      'Microsoft kontynuuje silny trend wzrostowy. Wskaźniki techniczne potwierdzają pozytywny momentum z RSI na poziomie 62. Cena znajduje się powyżej wszystkich głównych średnich kroczących, co wskazuje na silną strukturę trendu. Poziomy wsparcia i oporu sugerują dalszy potencjał wzrostowy.',
   },
   dax: {
     trend: 'bearish',
@@ -90,7 +92,8 @@ export const technicalAnalysis: Record<string, TechnicalAnalysis> = {
       macd: 'Bearish signal',
       movingAverage: 'Price below 50-day MA',
     },
-    summary: 'DAX Futures wykazuje korektę po wcześniejszych wzrostach. RSI na poziomie 42 wskazuje na neutralne do lekko niedowartościowane warunki. MACD pokazuje bearish signal, co sugeruje możliwość dalszej korekty. Pozycja służy jako zabezpieczenie portfela przed spadkami na rynku akcji.',
+    summary:
+      'DAX Futures wykazuje korektę po wcześniejszych wzrostach. RSI na poziomie 42 wskazuje na neutralne do lekko niedowartościowane warunki. MACD pokazuje bearish signal, co sugeruje możliwość dalszej korekty. Pozycja służy jako zabezpieczenie portfela przed spadkami na rynku akcji.',
   },
   gold: {
     trend: 'bullish',
@@ -101,11 +104,12 @@ export const technicalAnalysis: Record<string, TechnicalAnalysis> = {
       macd: 'Bullish trend',
       movingAverage: 'Price consolidating above support',
     },
-    summary: 'Złoto wykazuje stabilny trend wzrostowy w kontekście niepewności geopolitycznej i oczekiwań dotyczących obniżek stóp procentowych. RSI na poziomie 58 wskazuje na zdrowy momentum bez wykupienia. Cena konsoliduje się powyżej kluczowego wsparcia na poziomie 2000 USD, co wspiera dalszy potencjał wzrostowy.',
+    summary:
+      'Złoto wykazuje stabilny trend wzrostowy w kontekście niepewności geopolitycznej i oczekiwań dotyczących obniżek stóp procentowych. RSI na poziomie 58 wskazuje na zdrowy momentum bez wykupienia. Cena konsoliduje się powyżej kluczowego wsparcia na poziomie 2000 USD, co wspiera dalszy potencjał wzrostowy.',
   },
 };
 
-export const modifications: Record<string, Modification[]> = {
+export const initialModifications: Record<string, Modification[]> = {
   soxx: [
     {
       id: '1',
@@ -180,27 +184,30 @@ export const modifications: Record<string, Modification[]> = {
   ],
 };
 
-export const insights: Record<string, Insight[]> = {
+export const initialInsights: Record<string, Insight[]> = {
   soxx: [
     {
       id: '1',
       date: '2024-03-15',
       title: 'Silny popyt na półprzewodniki',
-      content: 'Sektor półprzewodników wykazuje silny popyt ze strony przemysłu AI i pojazdów elektrycznych. SOXX beneficjentem długoterminowych trendów technologicznych.',
+      content:
+        'Sektor półprzewodników wykazuje silny popyt ze strony przemysłu AI i pojazdów elektrycznych. SOXX beneficjentem długoterminowych trendów technologicznych.',
       impact: 'positive',
     },
     {
       id: '2',
       date: '2024-03-10',
       title: 'Wybicie powyżej oporu 460 USD',
-      content: 'Cena wybiła powyżej kluczowego poziomu oporu na 460 USD, co otwiera drogę do dalszych wzrostów w kierunku 480 USD.',
+      content:
+        'Cena wybiła powyżej kluczowego poziomu oporu na 460 USD, co otwiera drogę do dalszych wzrostów w kierunku 480 USD.',
       impact: 'positive',
     },
     {
       id: '3',
       date: '2024-03-01',
       title: 'RSI zbliża się do strefy wykupienia',
-      content: 'RSI na poziomie 68 wskazuje na możliwość krótkoterminowej korekty. Rozważamy częściową realizację zysków przy poziomie 470 USD.',
+      content:
+        'RSI na poziomie 68 wskazuje na możliwość krótkoterminowej korekty. Rozważamy częściową realizację zysków przy poziomie 470 USD.',
       impact: 'neutral',
     },
   ],
@@ -209,14 +216,16 @@ export const insights: Record<string, Insight[]> = {
       id: '1',
       date: '2024-03-12',
       title: 'Pozytywne wyniki kwartalne',
-      content: 'Microsoft raportuje silne wyniki, szczególnie w segmencie Azure i AI. Przychody z chmury rosną w tempie 28% rok do roku.',
+      content:
+        'Microsoft raportuje silne wyniki, szczególnie w segmencie Azure i AI. Przychody z chmury rosną w tempie 28% rok do roku.',
       impact: 'positive',
     },
     {
       id: '2',
       date: '2024-03-05',
       title: 'Integracja AI w produktach',
-      content: 'Firma intensywnie integruje funkcje AI w swoich produktach, co powinno wspierać wzrost przychodów w kolejnych kwartałach.',
+      content:
+        'Firma intensywnie integruje funkcje AI w swoich produktach, co powinno wspierać wzrost przychodów w kolejnych kwartałach.',
       impact: 'positive',
     },
   ],
@@ -225,14 +234,16 @@ export const insights: Record<string, Insight[]> = {
       id: '1',
       date: '2024-03-08',
       title: 'Korekta po wzrostach',
-      content: 'DAX koryguje po silnych wzrostach w pierwszym kwartale. Pozycja zabezpieczająca działa zgodnie z oczekiwaniami, ograniczając ekspozycję na spadki.',
+      content:
+        'DAX koryguje po silnych wzrostach w pierwszym kwartale. Pozycja zabezpieczająca działa zgodnie z oczekiwaniami, ograniczając ekspozycję na spadki.',
       impact: 'neutral',
     },
     {
       id: '2',
       date: '2024-02-20',
       title: 'Niepewność geopolityczna',
-      content: 'Zwiększona niepewność geopolityczna wspiera pozycję zabezpieczającą. DAX może testować niższe poziomy w przypadku eskalacji napięć.',
+      content:
+        'Zwiększona niepewność geopolityczna wspiera pozycję zabezpieczającą. DAX może testować niższe poziomy w przypadku eskalacji napięć.',
       impact: 'negative',
     },
   ],
@@ -241,39 +252,85 @@ export const insights: Record<string, Insight[]> = {
       id: '1',
       date: '2024-03-14',
       title: 'Oczekiwania dotyczące obniżek stóp',
-      content: 'Rynek oczekuje obniżek stóp procentowych przez Fed, co tradycyjnie wspiera ceny złota. Inflacja spada, co zwiększa prawdopodobieństwo poluzowania polityki monetarnej.',
+      content:
+        'Rynek oczekuje obniżek stóp procentowych przez Fed, co tradycyjnie wspiera ceny złota. Inflacja spada, co zwiększa prawdopodobieństwo poluzowania polityki monetarnej.',
       impact: 'positive',
     },
     {
       id: '2',
       date: '2024-03-02',
       title: 'Niepewność geopolityczna',
-      content: 'Zwiększona niepewność geopolityczna zwiększa popyt na złoto jako bezpieczną przystań. Popyt centralnych banków na złoto pozostaje silny.',
+      content:
+        'Zwiększona niepewność geopolityczna zwiększa popyt na złoto jako bezpieczną przystań. Popyt centralnych banków na złoto pozostaje silny.',
       impact: 'positive',
     },
     {
       id: '3',
       date: '2024-02-25',
       title: 'Konsolidacja powyżej 2000 USD',
-      content: 'Złoto konsoliduje się powyżej kluczowego wsparcia na 2000 USD, co buduje bazę do dalszych wzrostów. Poziom 2080 USD jest następnym celem.',
+      content:
+        'Złoto konsoliduje się powyżej kluczowego wsparcia na 2000 USD, co buduje bazę do dalszych wzrostów. Poziom 2080 USD jest następnym celem.',
       impact: 'positive',
     },
   ],
 };
 
-export function getPositionById(id: string): Position | undefined {
-  return positions.find(p => p.id === id);
-}
-
-export function getTechnicalAnalysis(symbol: string): TechnicalAnalysis | undefined {
-  return technicalAnalysis[symbol];
-}
-
-export function getModifications(symbol: string): Modification[] {
-  return modifications[symbol] || [];
-}
-
-export function getInsights(symbol: string): Insight[] {
-  return insights[symbol] || [];
-}
+export const initialStatusUpdates: StatusUpdate[] = [
+  {
+    id: 'release-1',
+    title: 'Wdrożenie PortiX 1.2',
+    date: '2025-10-12',
+    summary:
+      'Nowa wersja systemu PortiX wprowadza rozszerzone metryki ryzyka oraz usprawniony wykres TradingView z większą liczbą interwałów i lepszą optymalizacją wydajności.',
+    importance: 'important',
+  },
+  {
+    id: 'roadmap-1',
+    title: 'Planowany moduł alertów',
+    date: '2025-09-28',
+    summary:
+      'Kończymy prace nad inteligentnymi alertami wolumenu i scenariuszy stresowych. Moduł zapewni szybszą reakcję na gwałtowne ruchy rynkowe.',
+    importance: 'informational',
+  },
+  {
+    id: 'incident-1',
+    title: 'Incydent infrastrukturalny',
+    date: '2025-09-18',
+    summary:
+      'Konserwacja serwerów spowodowała 27-minutową przerwę w dostępie do danych rynkowych. Wdrożyliśmy dodatkowe monitorowanie, aby ograniczyć ryzyko powtórzenia.',
+    importance: 'critical',
+  },
+  {
+    id: 'security-1',
+    title: 'Audyt bezpieczeństwa PortiX',
+    date: '2025-09-05',
+    summary:
+      'Niezależny audyt potwierdził zgodność z politykami bezpieczeństwa. Wdrożyliśmy rekomendowane usprawnienia konfiguracji SIEM.',
+    importance: 'important',
+  },
+  {
+    id: 'data-1',
+    title: 'Integracja z nowymi dostawcami danych',
+    date: '2025-08-17',
+    summary:
+      'Dodaliśmy wsparcie dla strumieniowych danych z rynków azjatyckich oraz danych makro, co poprawia ciągłość notowań i jakość analiz.',
+    importance: 'informational',
+  },
+  {
+    id: 'ux-1',
+    title: 'Warsztaty UX z klientami',
+    date: '2025-08-03',
+    summary:
+      'Feedback z warsztatów wykorzystamy do zaprojektowania nowej sekcji skrótów oraz przebudowy widoku filtrów w aplikacji.',
+    importance: 'important',
+  },
+  {
+    id: 'foundation-1',
+    title: 'Rozpoczęcie budowy strony PortiX',
+    date: '2025-07-12',
+    summary:
+      'Zespół frontend i UX rozpoczął prace nad warstwą prezentacyjną Platformy PortiX i systemem komponentów UI.',
+    importance: 'informational',
+  },
+];
 

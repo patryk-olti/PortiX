@@ -343,6 +343,43 @@ a {
   flex-wrap: wrap;
 }
 
+.analysis-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgb(148 163 184 / 0.2);
+  color: var(--muted);
+  background: rgb(148 163 184 / 0.15);
+}
+
+.analysis-status.completed {
+  color: #34d399;
+  border-color: rgb(52 211 153 / 0.3);
+  background: rgb(52 211 153 / 0.15);
+}
+
+.analysis-status.open {
+  color: var(--accent);
+  border-color: rgb(96 165 250 / 0.35);
+  background: rgb(96 165 250 / 0.15);
+}
+
+.analysis-completion-note {
+  margin: 1rem 0 0 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgb(52 211 153 / 0.1);
+  border: 1px solid rgb(52 211 153 / 0.2);
+  color: #d1fae5;
+  font-size: 0.95rem;
+}
+
 .position-title h1 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 2.5rem);
