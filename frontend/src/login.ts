@@ -63,18 +63,14 @@ export function setupLoginHandlers(): void {
     }
     
     const formData = new FormData(loginForm);
-    const username = formData.get('username') as string;
-    const password = formData.get('password') as string;
+    const rawUsername = (formData.get('username') as string) ?? '';
+    const username = rawUsername.trim() || 'Administrator';
+    // Walidacja została tymczasowo wyłączona, aby umożliwić logowanie bez podawania hasła.
+    const password = (formData.get('password') as string) ?? '';
     
-    if (username && password) {
-      localStorage.setItem('adminAuthenticated', 'true');
-      localStorage.setItem('adminUsername', username);
-      window.location.hash = '#/admin';
-    } else {
-      if (errorDiv) {
-        errorDiv.textContent = 'Proszę wypełnić wszystkie pola';
-        errorDiv.style.display = 'block';
-      }
-    }
+    localStorage.setItem('adminAuthenticated', 'true');
+    localStorage.setItem('adminUsername', username || 'Administrator');
+    localStorage.setItem('adminLastLogin', new Date().toISOString());
+    window.location.hash = '#/admin';
   });
 }
