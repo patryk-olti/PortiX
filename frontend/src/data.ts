@@ -61,51 +61,47 @@ export const initialPositions: Position[] = [
 export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
   soxx: {
     trend: 'bullish',
-    support: '450.00 USD',
-    resistance: '480.00 USD',
-    indicators: {
-      rsi: 68,
-      macd: 'Bullish crossover',
-      movingAverage: 'Price above 50-day MA',
+    targets: {
+      tp1: '470 USD',
+      tp2: '480 USD',
+      tp3: '495 USD',
     },
+    stopLoss: '445 USD',
     summary:
-      'SOXX wykazuje silny trend wzrostowy. RSI na poziomie 68 wskazuje na możliwość kontynuacji wzrostu, choć zbliża się do strefy wykupienia. MACD pokazuje bullish crossover, co potwierdza pozytywny momentum. Cena znajduje się powyżej 50-dniowej średniej kroczącej, co wspiera trend wzrostowy.',
+      'SOXX pozostaje w silnym trendzie wzrostowym dzięki popytowi na półprzewodniki. Scenariusz bazowy zakłada kontynuację wzrostu po krótkiej konsolidacji.',
   },
   msft: {
     trend: 'bullish',
-    support: '330.00 USD',
-    resistance: '350.00 USD',
-    indicators: {
-      rsi: 62,
-      macd: 'Positive momentum',
-      movingAverage: 'Price above all major MAs',
+    targets: {
+      tp1: '348 USD',
+      tp2: '355 USD',
+      tp3: '365 USD',
     },
+    stopLoss: '318 USD',
     summary:
-      'Microsoft kontynuuje silny trend wzrostowy. Wskaźniki techniczne potwierdzają pozytywny momentum z RSI na poziomie 62. Cena znajduje się powyżej wszystkich głównych średnich kroczących, co wskazuje na silną strukturę trendu. Poziomy wsparcia i oporu sugerują dalszy potencjał wzrostowy.',
+      'Microsoft korzysta na rosnącej adopcji usług chmurowych i AI. Utrzymanie powyżej ostatniego wsparcia wspiera scenariusz dalszego wzrostu.',
   },
   dax: {
     trend: 'bearish',
-    support: '17 800 pkt',
-    resistance: '18 400 pkt',
-    indicators: {
-      rsi: 42,
-      macd: 'Bearish signal',
-      movingAverage: 'Price below 50-day MA',
+    targets: {
+      tp1: '17 600 pkt',
+      tp2: '17 300 pkt',
+      tp3: '17 000 pkt',
     },
+    stopLoss: '18 450 pkt',
     summary:
-      'DAX Futures wykazuje korektę po wcześniejszych wzrostach. RSI na poziomie 42 wskazuje na neutralne do lekko niedowartościowane warunki. MACD pokazuje bearish signal, co sugeruje możliwość dalszej korekty. Pozycja służy jako zabezpieczenie portfela przed spadkami na rynku akcji.',
+      'Kontrakt na DAX służy jako zabezpieczenie portfela. Scenariusz zakłada dalszą korektę w kierunku niższych poziomów wsparcia.',
   },
   gold: {
     trend: 'bullish',
-    support: '2 000 USD',
-    resistance: '2 080 USD',
-    indicators: {
-      rsi: 58,
-      macd: 'Bullish trend',
-      movingAverage: 'Price consolidating above support',
+    targets: {
+      tp1: '2 060 USD',
+      tp2: '2 090 USD',
+      tp3: '2 120 USD',
     },
+    stopLoss: '1 995 USD',
     summary:
-      'Złoto wykazuje stabilny trend wzrostowy w kontekście niepewności geopolitycznej i oczekiwań dotyczących obniżek stóp procentowych. RSI na poziomie 58 wskazuje na zdrowy momentum bez wykupienia. Cena konsoliduje się powyżej kluczowego wsparcia na poziomie 2000 USD, co wspiera dalszy potencjał wzrostowy.',
+      'Złoto wspierane jest przez oczekiwania związane z polityką monetarną i popyt na aktywa defensywne. Kluczowe wsparcie w okolicach 2000 USD pozostaje nienaruszone.',
   },
 };
 

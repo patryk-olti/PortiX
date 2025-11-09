@@ -12,14 +12,14 @@ export interface Position {
 
 export interface TechnicalAnalysis {
   trend: 'bullish' | 'bearish' | 'neutral';
-  support: string;
-  resistance: string;
-  indicators: {
-    rsi: number;
-    macd: string;
-    movingAverage: string;
+  targets: {
+    tp1?: string;
+    tp2?: string;
+    tp3?: string;
   };
+  stopLoss?: string;
   summary: string;
+  analysisImage?: string;
   completed?: boolean;
   completionNote?: string;
   completionDate?: string;

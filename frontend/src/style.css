@@ -523,6 +523,28 @@ a {
   line-height: 1.7;
 }
 
+.analysis-figure {
+  margin-top: 1.75rem;
+  display: grid;
+  gap: 0.75rem;
+  background: var(--surface);
+  border-radius: 18px;
+  border: 1px solid rgb(148 163 184 / 0.1);
+  padding: 1.5rem;
+}
+
+.analysis-figure img {
+  width: 100%;
+  border-radius: 12px;
+  display: block;
+}
+
+.analysis-figure figcaption {
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+}
+
 .modifications-section,
 .insights-section {
   background: var(--surface-strong);
@@ -1044,16 +1066,88 @@ a {
   }
 }
 
-/* Admin Management Forms */
-.admin-create-position,
-.admin-analyses,
-.admin-news {
+/* Admin Dashboard Layout */
+.admin-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.admin-sidebar {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--surface-strong);
+  border-radius: 24px;
+  border: 1px solid rgb(148 163 184 / 0.2);
+  padding: 2rem 1.5rem;
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+}
+
+.admin-sidebar-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.admin-sidebar-header p {
+  margin: 0.35rem 0 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.admin-sidebar-nav {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-tab-link {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgb(148 163 184 / 0.2);
+  color: rgb(226 232 240 / 0.85);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.admin-tab-link:hover {
+  border-color: rgb(96 165 250 / 0.4);
+  color: var(--accent);
+}
+
+.admin-tab-link.active {
+  background: rgb(96 165 250 / 0.15);
+  border-color: rgb(96 165 250 / 0.45);
+  color: var(--accent-strong);
+  transform: translateX(4px);
+}
+
+.admin-content {
+  flex: 1;
+  display: grid;
+  gap: 2rem;
+}
+
+.admin-section {
+  display: none;
   background: var(--surface-strong);
   border-radius: 24px;
   padding: 2.5rem;
   border: 1px solid rgb(148 163 184 / 0.2);
-  display: grid;
   gap: 1.75rem;
+}
+
+.admin-section.active {
+  display: grid;
 }
 
 .admin-form {
@@ -1071,11 +1165,17 @@ a {
 
 .admin-form-fieldset legend {
   padding: 0 0.75rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.fieldset-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgb(226 232 240 / 0.75);
 }
 
 .form-grid {
@@ -1115,6 +1215,11 @@ a {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgb(96 165 250 / 0.1);
+}
+
+.form-field input[type="file"] {
+  padding: 0.6rem 0.9rem;
+  background: rgb(15 23 39 / 0.6);
 }
 
 .admin-form-actions {
@@ -1158,31 +1263,21 @@ button.secondary:hover {
   color: var(--accent-strong);
 }
 
-.admin-analyses-list {
+.analysis-selector {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
-.admin-analysis-card {
-  background: var(--surface);
-  border-radius: 20px;
-  border: 1px solid rgb(148 163 184 / 0.15);
-  padding: 1.75rem;
-  display: grid;
-  gap: 1.5rem;
-}
-
-.admin-analysis-header {
+.analysis-form-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
-.admin-analysis-header h3 {
+.analysis-form-title h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: #f8fafc;
 }
@@ -1196,13 +1291,6 @@ button.secondary:hover {
   color: #08213f;
   font-size: 0.85rem;
   font-weight: 600;
-}
-
-.admin-analysis-category {
-  color: var(--muted);
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .analysis-completion {
@@ -1223,8 +1311,18 @@ button.secondary:hover {
   color: rgb(226 232 240 / 0.85);
 }
 
-.analysis-completion textarea {
-  resize: vertical;
+.analysis-image-preview {
+  margin-top: -0.5rem;
+  padding: 1rem;
+  border: 1px solid rgb(148 163 184 / 0.2);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.analysis-image-preview img {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
 }
 
 .analysis-info {
@@ -1303,6 +1401,17 @@ button.secondary:hover {
   color: var(--muted);
 }
 
+@media (max-width: 960px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    position: static;
+  }
+}
+
 @media (max-width: 720px) {
   .admin-form-fieldset {
     padding: 1.25rem;
@@ -1310,12 +1419,6 @@ button.secondary:hover {
 
   .form-grid {
     grid-template-columns: 1fr;
-  }
-
-  .admin-analysis-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
   }
 }
 

@@ -23,6 +23,7 @@ export function renderPositionDetails(positionId: string): string {
   const completionBadge = analysis?.completed
     ? `<span class="analysis-status completed">Zrealizowano ${analysis.completionDate ? formatDate(analysis.completionDate) : ''}</span>`
     : '<span class="analysis-status open">Aktywna analiza</span>';
+  const targets = analysis?.targets ?? {};
 
   return `
     <nav class="detail-nav">
@@ -74,32 +75,19 @@ export function renderPositionDetails(positionId: string): string {
       <section class="technical-analysis-section">
         <div class="section-header">
           <h2>Analiza techniczna</h2>
-          <p>Wskaźniki i poziomy kluczowe</p>
+          <p>Założenia scenariusza wraz z poziomami docelowymi</p>
         </div>
         <div class="analysis-grid">
           <div class="analysis-card">
             <span class="analysis-label">Trend</span>
             <span class="analysis-value ${trendClass}">${trendText}</span>
           </div>
+          ${renderTargetCard('TP1', targets.tp1)}
+          ${renderTargetCard('TP2', targets.tp2)}
+          ${renderTargetCard('TP3', targets.tp3)}
           <div class="analysis-card">
-            <span class="analysis-label">Wsparcie</span>
-            <span class="analysis-value">${analysis?.support || 'N/A'}</span>
-          </div>
-          <div class="analysis-card">
-            <span class="analysis-label">Opór</span>
-            <span class="analysis-value">${analysis?.resistance || 'N/A'}</span>
-          </div>
-          <div class="analysis-card">
-            <span class="analysis-label">RSI</span>
-            <span class="analysis-value">${analysis?.indicators?.rsi ?? 'N/A'}</span>
-          </div>
-          <div class="analysis-card">
-            <span class="analysis-label">MACD</span>
-            <span class="analysis-value">${analysis?.indicators?.macd ?? 'N/A'}</span>
-          </div>
-          <div class="analysis-card">
-            <span class="analysis-label">Średnia krocząca</span>
-            <span class="analysis-value">${analysis?.indicators?.movingAverage ?? 'N/A'}</span>
+            <span class="analysis-label">Negacja scenariusza (SL)</span>
+            <span class="analysis-value">${analysis?.stopLoss || 'N/A'}</span>
           </div>
         </div>
         <div class="analysis-summary">
@@ -107,6 +95,14 @@ export function renderPositionDetails(positionId: string): string {
           <p>${analysis?.summary || 'Brak dostępnej analizy technicznej.'}</p>
           ${analysis?.completed && analysis.completionNote ? `<p class="analysis-completion-note">Powód realizacji: ${analysis.completionNote}</p>` : ''}
         </div>
+        ${
+          analysis?.analysisImage
+            ? `<figure class="analysis-figure">
+                <img src="${analysis.analysisImage}" alt="Analiza techniczna ${position.name}" loading="lazy" />
+                <figcaption>Szczegóły analizy graficznej</figcaption>
+              </figure>`
+            : ''
+        }
       </section>
 
       <section class="modifications-section">
@@ -168,6 +164,15 @@ export function renderPositionDetails(positionId: string): string {
         </div>
       </section>
     </main>
+  `;
+}
+
+function renderTargetCard(label: string, value?: string): string {
+  return `
+    <div class="analysis-card">
+      <span class="analysis-label">${label}</span>
+      <span class="analysis-value">${value || '—'}</span>
+    </div>
   `;
 }
 

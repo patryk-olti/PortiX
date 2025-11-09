@@ -58,12 +58,14 @@ function loadState(): AdminState {
 }
 
 function normalizeState(parsed: Partial<AdminState>): AdminState {
+  const technicalAnalysisSource =
+    parsed.technicalAnalysis && typeof parsed.technicalAnalysis === 'object'
+      ? clone(parsed.technicalAnalysis)
+      : clone(defaultState.technicalAnalysis)
+
   return {
     positions: Array.isArray(parsed.positions) ? clone(parsed.positions) : clone(defaultState.positions),
-    technicalAnalysis:
-      parsed.technicalAnalysis && typeof parsed.technicalAnalysis === 'object'
-        ? clone(parsed.technicalAnalysis)
-        : clone(defaultState.technicalAnalysis),
+    technicalAnalysis: migrateTechnicalAnalyses(technicalAnalysisSource),
     modifications:
       parsed.modifications && typeof parsed.modifications === 'object'
         ? clone(parsed.modifications)
@@ -75,6 +77,52 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
     statusUpdates:
       Array.isArray(parsed.statusUpdates) ? clone(parsed.statusUpdates) : clone(defaultState.statusUpdates),
   }
+}
+
+function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any>): Record<string, TechnicalAnalysis> {
+  const migrated: Record<string, TechnicalAnalysis> = {}
+  Object.entries(source).forEach(([key, value]) => {
+    if (value && typeof value === 'object') {
+      if ('targets' in value || 'stopLoss' in value || 'analysisImage' in value) {
+        migrated[key] = {
+          trend: value.trend ?? 'neutral',
+          targets: {
+            ...(value.targets?.tp1 ? { tp1: value.targets.tp1 } : {}),
+            ...(value.targets?.tp2 ? { tp2: value.targets.tp2 } : {}),
+            ...(value.targets?.tp3 ? { tp3: value.targets.tp3 } : {}),
+          },
+          stopLoss: value.stopLoss ?? '',
+          summary: value.summary ?? '',
+          analysisImage: value.analysisImage,
+          completed: value.completed ?? false,
+          completionNote: value.completionNote,
+          completionDate: value.completionDate,
+        }
+      } else {
+        migrated[key] = {
+          trend: value.trend ?? 'neutral',
+          targets: {
+            ...(value.resistance ? { tp1: value.resistance } : {}),
+          },
+          stopLoss: value.support ?? '',
+          summary:
+            value.summary ??
+            (value.indicators ? `RSI: ${value.indicators.rsi}, MACD: ${value.indicators.macd}` : ''),
+          completed: value.completed ?? false,
+          completionNote: value.completionNote,
+          completionDate: value.completionDate,
+        }
+      }
+    } else {
+      migrated[key] = {
+        trend: 'neutral',
+        targets: {},
+        stopLoss: '',
+        summary: '',
+      }
+    }
+  })
+  return migrated
 }
 
 function saveState() {
