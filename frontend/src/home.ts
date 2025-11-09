@@ -81,7 +81,7 @@ export function renderHome(): string {
     <footer class="footer">
       <small>© ${new Date().getFullYear()} PortiX. Wszystkie prawa zastrzeżone.</small>
       <nav>
-        <a href="#">Status projektu</a>
+        <a href="#/status">Status projektu</a>
         <a href="#">Dokumentacja</a>
         <a href="#">Kontakt</a>
         <a href="#/login">Logowanie</a>
