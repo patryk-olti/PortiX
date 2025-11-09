@@ -1,6 +1,8 @@
 import './style.css'
 import { renderHome, setupHomeHandlers } from './home'
 import { renderPositionDetails, setupPositionDetailsHandlers } from './position-details'
+import { renderLogin, setupLoginHandlers } from './login'
+import { renderAdmin, setupAdminHandlers } from './admin'
 
 function getRoute(): { path: string; params: Record<string, string> } {
   const hash = window.location.hash.slice(1)
@@ -35,6 +37,22 @@ function render() {
       setTimeout(() => {
         setupPositionDetailsHandlers()
       }, 0)
+    } else if (route.path === 'login') {
+      const html = renderLogin()
+      app.innerHTML = html
+      window.scrollTo(0, 0)
+      setTimeout(() => {
+        setupLoginHandlers()
+      }, 0)
+    } else if (route.path === 'admin') {
+      const html = renderAdmin()
+      if (html) {
+        app.innerHTML = html
+        window.scrollTo(0, 0)
+        setTimeout(() => {
+          setupAdminHandlers()
+        }, 0)
+      }
     } else {
       const html = renderHome()
       app.innerHTML = html

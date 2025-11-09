@@ -84,7 +84,7 @@ export function renderHome(): string {
         <a href="#">Status projektu</a>
         <a href="#">Dokumentacja</a>
         <a href="#">Kontakt</a>
-        <a href="#">Logowanie</a>
+        <a href="#/login">Logowanie</a>
       </nav>
     </footer>
   `;
