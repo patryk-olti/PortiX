@@ -23,6 +23,10 @@ const sidebarSections = [
 
 type CategoryOption = (typeof categoryOptions)[number]['value']
 
+type TrendOption = TechnicalAnalysis['trend']
+
+type SectionId = (typeof sidebarSections)[number]['id']
+
 export function renderAdmin(): string {
   const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true'
   const username = localStorage.getItem('adminUsername') || 'Administrator'
@@ -37,21 +41,11 @@ export function renderAdmin(): string {
   const initialAnalysisPositionId = positions[0]?.id ?? ''
 
   return `
-    <nav class="detail-nav">
-      <div class="admin-nav-header">
-        <a href="#/" class="back-link">
-          <span class="back-icon">←</span>
-          Powrót do portfela
-        </a>
-        <button class="logout-button" id="logout-button">Wyloguj się</button>
-      </div>
-    </nav>
-
-    <main class="page admin-page admin-layout">
+    <main class="admin-page admin-layout" data-active-section="create">
       <aside class="admin-sidebar">
         <div class="admin-sidebar-header">
           <h1>Panel administratora</h1>
-          <p>Witaj, ${username}</p>
+          <p>${username}</p>
         </div>
         <nav class="admin-sidebar-nav">
           ${sidebarSections
@@ -64,10 +58,13 @@ export function renderAdmin(): string {
             )
             .join('')}
         </nav>
+        <div class="admin-sidebar-footer">
+          <button type="button" class="logout-button admin-logout">Wyloguj się</button>
+        </div>
       </aside>
 
       <section class="admin-content">
-        <section class="admin-section ${sidebarSections[0].id === 'create' ? 'active' : ''}" data-section="create">
+        <section class="admin-section active" data-section="create">
           <div class="section-header">
             <h2>Dodaj nową pozycję</h2>
             <p>Uzupełnij podstawowe dane pozycji oraz scenariusz analizy technicznej.</p>
@@ -100,15 +97,15 @@ export function renderAdmin(): string {
             <fieldset class="admin-form-fieldset">
               <legend>Analiza techniczna</legend>
               <p class="fieldset-note">
-                Ważne: uzupełnij cele TP oraz poziom SL (negacja scenariusza). Możesz dołączyć zrzut ekranu z analizy.
+                Wprowadź trend, cele take-profit oraz poziom stop-loss. Opcjonalnie dodaj zrzut ekranu analizy.
               </p>
               <div class="form-grid">
                 <label class="form-field">
                   <span>Trend</span>
                   <select name="trend" required>
-                    <option value="bullish">Wzrostowy</option>
-                    <option value="neutral">Neutralny</option>
-                    <option value="bearish">Spadkowy</option>
+                    ${renderTrendOption('bullish', 'Wzrostowy', 'bullish')}
+                    ${renderTrendOption('neutral', 'Neutralny', 'bullish')}
+                    ${renderTrendOption('bearish', 'Spadkowy', 'bullish')}
                   </select>
                 </label>
                 <label class="form-field">
@@ -134,7 +131,7 @@ export function renderAdmin(): string {
               </div>
               <label class="form-field">
                 <span>Podsumowanie</span>
-                <textarea name="summary" rows="4" required placeholder="Krótki opis scenariusza."></textarea>
+                <textarea name="summary" rows="4" required placeholder="Krótki opis scenariusza"></textarea>
               </label>
             </fieldset>
 
@@ -147,7 +144,7 @@ export function renderAdmin(): string {
         <section class="admin-section" data-section="analyses">
           <div class="section-header">
             <h2>Edycja analiz</h2>
-            <p>Wybierz pozycję i zaktualizuj poziomy docelowe, SL oraz status scenariusza.</p>
+            <p>Wybierz pozycję, zaktualizuj cele, SL, status oraz opcjonalny zrzut ekranu.</p>
           </div>
           ${
             positions.length
@@ -157,13 +154,9 @@ export function renderAdmin(): string {
                   <span>Aktywna pozycja</span>
                   <select id="analysis-position-select">
                     ${positions
-                      .map(
-                        (position, index) => `
-                        <option value="${position.id}" ${index === 0 ? 'selected' : ''}>
-                          ${position.name} (${position.symbol})
-                        </option>
-                      `,
-                      )
+                      .map(({ id, name, symbol }, index) => `
+                        <option value="${id}" ${index === 0 ? 'selected' : ''}>${name} (${symbol})</option>
+                      `)
                       .join('')}
                   </select>
                 </label>
@@ -172,14 +165,14 @@ export function renderAdmin(): string {
                 ${initialAnalysisPositionId ? renderAnalysisForm(initialAnalysisPositionId) : ''}
               </div>
             `
-              : '<p class="empty-state">Brak pozycji do edycji. Dodaj nową pozycję, aby rozpocząć.</p>'
+              : '<p class="empty-state">Brak dostępnych pozycji. Dodaj pozycję, aby rozpocząć edycję analiz.</p>'
           }
         </section>
 
         <section class="admin-section" data-section="news">
           <div class="section-header">
             <h2>Aktualności statusu projektu</h2>
-            <p>Dodawaj komunikaty, które pojawią się w sekcji statusu.</p>
+            <p>Dodaj komunikat, który pojawi się w sekcji statusu.</p>
           </div>
           <form class="admin-form" id="status-update-form">
             <div class="form-grid">
@@ -237,7 +230,7 @@ export function renderAdmin(): string {
 }
 
 export function setupAdminHandlers(): void {
-  const logoutButton = document.querySelector<HTMLButtonElement>('#logout-button')
+  const logoutButton = document.querySelector<HTMLButtonElement>('.admin-logout')
   logoutButton?.addEventListener('click', () => {
     localStorage.removeItem('adminAuthenticated')
     localStorage.removeItem('adminUsername')
@@ -254,18 +247,22 @@ function setupSidebarNavigation() {
   const links = Array.from(document.querySelectorAll<HTMLButtonElement>('.admin-tab-link'))
   const sections = Array.from(document.querySelectorAll<HTMLElement>('.admin-section'))
 
-  const activate = (target: string) => {
+  const activate = (target: SectionId) => {
     links.forEach(link => {
       link.classList.toggle('active', link.dataset.target === target)
     })
     sections.forEach(section => {
       section.classList.toggle('active', section.dataset.section === target)
     })
+    const root = document.querySelector<HTMLElement>('.admin-page')
+    if (root) {
+      root.setAttribute('data-active-section', target)
+    }
   }
 
   links.forEach(link => {
     link.addEventListener('click', () => {
-      const target = link.dataset.target
+      const target = link.dataset.target as SectionId | undefined
       if (target) {
         activate(target)
       }
@@ -287,7 +284,7 @@ function setupCreatePositionForm() {
     const symbol = ((formData.get('symbol') as string) || '').trim().toUpperCase()
     const category = formData.get('category') as CategoryOption
     const purchasePrice = (formData.get('purchasePrice') as string)?.trim()
-    const trend = formData.get('trend') as TechnicalAnalysis['trend']
+    const trend = formData.get('trend') as TrendOption
     const tp1 = (formData.get('tp1') as string)?.trim()
     const tp2 = (formData.get('tp2') as string)?.trim()
     const tp3 = (formData.get('tp3') as string)?.trim()
@@ -378,7 +375,7 @@ function bindAnalysisForm(form: HTMLFormElement) {
       return
     }
 
-    const trend = formData.get('trend') as TechnicalAnalysis['trend']
+    const trend = formData.get('trend') as TrendOption
     const tp1 = (formData.get('tp1') as string)?.trim()
     const tp2 = (formData.get('tp2') as string)?.trim()
     const tp3 = (formData.get('tp3') as string)?.trim()
@@ -566,7 +563,7 @@ function getCategoryLabel(category: CategoryOption): string {
   return categoryOptions.find(option => option.value === category)?.label ?? category
 }
 
-function renderTrendOption(value: TechnicalAnalysis['trend'], label: string, current?: TechnicalAnalysis['trend']): string {
+function renderTrendOption(value: TrendOption, label: string, current?: TrendOption): string {
   return `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`
 }
 

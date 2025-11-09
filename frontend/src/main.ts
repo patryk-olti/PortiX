@@ -39,6 +39,7 @@ function render() {
       setTimeout(() => {
         setupPositionDetailsHandlers()
       }, 0)
+      app.classList.remove('admin-root')
     } else if (route.path === 'login') {
       const html = renderLogin()
       app.innerHTML = html
@@ -46,6 +47,7 @@ function render() {
       setTimeout(() => {
         setupLoginHandlers()
       }, 0)
+      app.classList.remove('admin-root')
     } else if (route.path === 'status') {
       const html = renderStatus()
       app.innerHTML = html
@@ -53,6 +55,7 @@ function render() {
       setTimeout(() => {
         setupStatusHandlers()
       }, 0)
+      app.classList.remove('admin-root')
     } else if (route.path === 'admin') {
       const html = renderAdmin()
       if (html) {
@@ -61,6 +64,7 @@ function render() {
         setTimeout(() => {
           setupAdminHandlers()
         }, 0)
+        app.classList.add('admin-root')
       }
     } else {
       const html = renderHome()
@@ -68,6 +72,7 @@ function render() {
       // Scroll to top when navigating to home page
       window.scrollTo(0, 0)
       setupHomeHandlers()
+      app.classList.remove('admin-root')
     }
   } catch (error) {
     console.error('Error rendering:', error)
