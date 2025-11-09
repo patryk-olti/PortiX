@@ -10,8 +10,13 @@ export function renderHome(): string {
         </h1>
         <p class="hero-subtitle">Techniczne spojrzenie na rynek</p>
         <p class="lede">
-          Monitorujemy zmienność, przepływy kapitału i ryzyko, aby precyzyjnie
-          zarządzać portfelem inwestycyjnym.
+          Nasze decyzje inwestycyjne opierają się na precyzji analizy technicznej i
+          dogłębnym zrozumieniu mechanizmów rynku. Nieustannie śledzimy zmienność,
+          kierunki przepływu kapitału i poziom ryzyka, by budować portfel odporny na
+          wahania. Stawiamy na strategię, nie przypadek – to fundament naszego
+          podejścia do inwestowania. Nasze analizy mają charakter informacyjny i nie
+          stanowią rekomendacji inwestycyjnych; pokazują wyłącznie naszą metodykę
+          działania, a nie zachętę do uczestnictwa.
         </p>
       </section>
 
