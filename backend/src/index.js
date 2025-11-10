@@ -1,11 +1,48 @@
 require('dotenv').config()
 const express = require('express')
+const cors = require('cors')
 const { pool } = require('./lib/db')
 const { ensureNewsTable } = require('./lib/schema')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems } = require('./lib/news')
 
 const app = express()
 const PORT = process.env.PORT || 3000
+
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]
+
+const configuredOrigins =
+  typeof process.env.CORS_ORIGINS === 'string' && process.env.CORS_ORIGINS.trim().length > 0
+    ? process.env.CORS_ORIGINS.split(',')
+        .map(origin => origin.trim())
+        .filter(origin => origin.length > 0)
+    : undefined
+
+const allowedOrigins = configuredOrigins ?? DEFAULT_ALLOWED_ORIGINS
+const allowAll = process.env.CORS_ALLOW_ALL === 'true'
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true)
+        return
+      }
+      if (allowAll || allowedOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(new Error(`Not allowed by CORS: ${origin}`))
+    },
+    credentials: true,
+  }),
+)
 
 app.use(express.json())
 

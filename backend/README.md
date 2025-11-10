@@ -6,6 +6,9 @@ Create `backend/.env` with:
 
 ```
 SUPABASE_DB_URL=postgresql://postgres.pmgyenfmgzncyfawshls:P1w2rt2c%26@aws-1-eu-west-1.pooler.supabase.com:6543/postgres
+# Optional CORS configuration
+# CORS_ALLOW_ALL=true
+# CORS_ORIGINS=http://localhost:5173,http://localhost:4173
 ```
 
 ### Development
