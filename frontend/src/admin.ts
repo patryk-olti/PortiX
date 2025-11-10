@@ -36,6 +36,19 @@ type PositionTypeOption = (typeof positionTypeOptions)[number]['value']
 
 type SectionId = (typeof sidebarSections)[number]['id']
 
+const ACTIVE_SECTION_STORAGE_KEY = 'adminActiveSection'
+
+function getStoredActiveSection(): SectionId {
+  if (typeof window === 'undefined') {
+    return 'create'
+  }
+  const stored = window.sessionStorage.getItem(ACTIVE_SECTION_STORAGE_KEY)
+  if (stored === 'create' || stored === 'analyses' || stored === 'news') {
+    return stored
+  }
+  return 'create'
+}
+
 export function renderAdmin(): string {
   const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true'
   const username = localStorage.getItem('adminUsername') || 'Administrator'
@@ -48,9 +61,10 @@ export function renderAdmin(): string {
   const positions = getPositions()
   const statusUpdates = getStatusUpdates()
   const initialAnalysisPositionId = positions[0]?.id ?? ''
+  const activeSection = getStoredActiveSection()
 
   return `
-    <main class="admin-page admin-layout" data-active-section="create">
+    <main class="admin-page admin-layout" data-active-section="${activeSection}">
       <aside class="admin-sidebar">
         <div class="admin-sidebar-logo">
           <img src="/logo.svg" alt="PortiX logo" />
@@ -63,7 +77,13 @@ export function renderAdmin(): string {
           ${sidebarSections
             .map(
               (section, index) => `
-                <button type="button" class="admin-tab-link ${index === 0 ? 'active' : ''}" data-target="${section.id}">
+                <button type="button" class="admin-tab-link ${
+                  section.id === activeSection
+                    ? 'active'
+                    : index === 0 && !activeSection
+                      ? 'active'
+                      : ''
+                }" data-target="${section.id}">
                   ${section.label}
                 </button>
               `,
@@ -76,7 +96,7 @@ export function renderAdmin(): string {
       </aside>
 
       <section class="admin-content">
-        <section class="admin-section active" data-section="create">
+        <section class="admin-section ${activeSection === 'create' ? 'active' : ''}" data-section="create">
           <div class="section-header">
             <h2>Dodaj nową pozycję</h2>
             <p>Uzupełnij podstawowe dane pozycji oraz scenariusz analizy technicznej.</p>
@@ -161,7 +181,7 @@ export function renderAdmin(): string {
           </form>
         </section>
 
-        <section class="admin-section" data-section="analyses">
+        <section class="admin-section ${activeSection === 'analyses' ? 'active' : ''}" data-section="analyses">
           <div class="section-header">
             <h2>Edycja analiz</h2>
             <p>Wybierz pozycję, zaktualizuj cele, SL, status oraz opcjonalny zrzut ekranu.</p>
@@ -189,7 +209,7 @@ export function renderAdmin(): string {
           }
         </section>
 
-        <section class="admin-section" data-section="news">
+        <section class="admin-section ${activeSection === 'news' ? 'active' : ''}" data-section="news">
           <div class="section-header">
             <h2>Aktualności statusu projektu</h2>
             <p>Dodaj komunikat, który pojawi się w sekcji statusu.</p>
@@ -255,6 +275,7 @@ function setupSidebarNavigation() {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('.admin-section'))
 
   const activate = (target: SectionId) => {
+    sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, target)
     links.forEach(link => {
       link.classList.toggle('active', link.dataset.target === target)
     })
