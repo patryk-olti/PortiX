@@ -4,10 +4,11 @@ import {
   getPositions,
   getStatusUpdates,
   getTechnicalAnalysis,
+  replaceStatusUpdates,
   upsertTechnicalAnalysis,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
-import { createNews } from './api'
+import { createNews, fetchStatusUpdates } from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
@@ -223,24 +224,9 @@ export function renderAdmin(): string {
 
           <div class="admin-news-preview">
             <h3>Ostatnie aktualności</h3>
-            ${
-              statusUpdates.length
-                ? `<ul class="admin-news-list">
-                    ${statusUpdates
-                      .slice(0, 5)
-                      .map(
-                        update => `
-                          <li>
-                            <span class="admin-news-date">${formatDate(update.date)}</span>
-                            <span class="admin-news-title">${update.title}</span>
-                            <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
-                          </li>
-                        `,
-                      )
-                      .join('')}
-                  </ul>`
-                : '<p class="empty-state">Brak dodanych aktualności.</p>'
-            }
+            <div class="admin-news-wrapper" id="admin-news-wrapper">
+              ${renderAdminNewsList(statusUpdates)}
+            </div>
           </div>
         </section>
       </section>
@@ -260,6 +246,8 @@ export function setupAdminHandlers(): void {
   setupCreatePositionForm()
   setupAnalysisSection()
   setupStatusForm()
+  refreshAdminNewsPreview()
+  void syncStatusUpdatesFromApi()
 }
 
 function setupSidebarNavigation() {
@@ -519,12 +507,14 @@ function setupStatusForm() {
       }
 
       addStatusUpdate(update)
+      refreshAdminNewsPreview()
       alert('Dodano nową aktualność.')
       form.reset()
       const dateInput = form.querySelector<HTMLInputElement>('input[name="date"]')
       if (dateInput) {
         dateInput.value = new Date().toISOString().slice(0, 10)
       }
+      await syncStatusUpdatesFromApi()
     } catch (error) {
       console.error('Nie udało się dodać aktualności:', error)
       const message = error instanceof Error ? error.message : 'Nie udało się dodać aktualności.'
@@ -536,6 +526,56 @@ function setupStatusForm() {
       }
     }
   })
+}
+
+function renderAdminNewsList(updates: StatusUpdate[]): string {
+  if (!updates.length) {
+    return '<p class="empty-state">Brak dodanych aktualności.</p>'
+  }
+
+  return `<ul class="admin-news-list">
+    ${updates
+      .slice(0, 5)
+      .map(
+        update => `
+          <li>
+            <span class="admin-news-date">${formatDate(update.date)}</span>
+            <span class="admin-news-title">${update.title}</span>
+            <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
+          </li>
+        `,
+      )
+      .join('')}
+  </ul>`
+}
+
+function refreshAdminNewsPreview(): void {
+  const wrapper = document.querySelector<HTMLDivElement>('#admin-news-wrapper')
+  if (!wrapper) {
+    return
+  }
+  const updates = getStatusUpdates()
+  wrapper.innerHTML = renderAdminNewsList(updates)
+}
+
+async function syncStatusUpdatesFromApi(): Promise<void> {
+  const wrapper = document.querySelector<HTMLDivElement>('#admin-news-wrapper')
+  if (wrapper && !wrapper.dataset.loading) {
+    wrapper.dataset.loading = 'true'
+    wrapper.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
+  }
+
+  try {
+    const updates = await fetchStatusUpdates(30)
+    replaceStatusUpdates(updates)
+  } catch (error) {
+    console.error('Nie udało się pobrać aktualności:', error)
+  } finally {
+    if (wrapper) {
+      delete wrapper.dataset.loading
+    }
+    refreshAdminNewsPreview()
+  }
 }
 
 function renderAnalysisForm(positionId: string): string {

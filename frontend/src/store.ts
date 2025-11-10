@@ -25,6 +25,16 @@ const defaultState: AdminState = {
   statusUpdates: clone(initialStatusUpdates),
 }
 
+const SAMPLE_STATUS_UPDATE_IDS = new Set([
+  'release-1',
+  'roadmap-1',
+  'incident-1',
+  'security-1',
+  'data-1',
+  'ux-1',
+  'foundation-1',
+])
+
 const listeners = new Set<() => void>()
 let state: AdminState = loadState()
 
@@ -63,6 +73,9 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
       ? clone(parsed.technicalAnalysis)
       : clone(defaultState.technicalAnalysis)
 
+  const statusUpdatesSource =
+    Array.isArray(parsed.statusUpdates) ? clone(parsed.statusUpdates) : clone(defaultState.statusUpdates)
+
   return {
     positions: migratePositions(
       Array.isArray(parsed.positions) ? clone(parsed.positions) : clone(defaultState.positions),
@@ -76,8 +89,7 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
       parsed.insights && typeof parsed.insights === 'object'
         ? clone(parsed.insights)
         : clone(defaultState.insights),
-    statusUpdates:
-      Array.isArray(parsed.statusUpdates) ? clone(parsed.statusUpdates) : clone(defaultState.statusUpdates),
+    statusUpdates: migrateStatusUpdates(statusUpdatesSource),
   }
 }
 
@@ -140,6 +152,51 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
   return migrated
 }
 
+function sanitizeImportance(value: StatusUpdate['importance']): StatusUpdate['importance'] {
+  if (value === 'critical' || value === 'important' || value === 'informational') {
+    return value
+  }
+  return 'informational'
+}
+
+function migrateStatusUpdates(source: StatusUpdate[]): StatusUpdate[] {
+  const seen = new Set<string>()
+  const migrated: StatusUpdate[] = []
+
+  source.forEach(item => {
+    if (!item || typeof item !== 'object') {
+      return
+    }
+    if (!item.id || typeof item.id !== 'string') {
+      return
+    }
+    if (SAMPLE_STATUS_UPDATE_IDS.has(item.id) || seen.has(item.id)) {
+      return
+    }
+
+    const normalizedDate =
+      typeof item.date === 'string' && item.date.length >= 10 ? item.date.slice(0, 10) : new Date().toISOString().slice(0, 10)
+
+    migrated.push({
+      id: item.id,
+      title: (item.title ?? '').toString(),
+      summary: (item.summary ?? '').toString(),
+      importance: sanitizeImportance(item.importance),
+      date: normalizedDate,
+    })
+    seen.add(item.id)
+  })
+
+  migrated.sort((a, b) => {
+    if (a.date === b.date) {
+      return a.id < b.id ? 1 : -1
+    }
+    return a.date < b.date ? 1 : -1
+  })
+
+  return migrated
+}
+
 function saveState() {
   if (typeof window === 'undefined') {
     return
@@ -198,6 +255,14 @@ export function getStatusUpdates(): StatusUpdate[] {
   return clone(state.statusUpdates)
 }
 
+export function replaceStatusUpdates(updates: StatusUpdate[]) {
+  updateState(current => {
+    const next = clone(current)
+    next.statusUpdates = migrateStatusUpdates(updates)
+    return next
+  })
+}
+
 export interface NewPositionPayload {
   position: Position
   analysis: TechnicalAnalysis
@@ -238,15 +303,7 @@ export function upsertTechnicalAnalysis(positionId: string, analysis: TechnicalA
 export function addStatusUpdate(update: StatusUpdate) {
   updateState(current => {
     const next = clone(current)
-    next.statusUpdates = [update, ...next.statusUpdates]
-    return next
-  })
-}
-
-export function replaceStatusUpdates(updates: StatusUpdate[]) {
-  updateState(current => {
-    const next = clone(current)
-    next.statusUpdates = [...updates].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    next.statusUpdates = migrateStatusUpdates([update, ...next.statusUpdates])
     return next
   })
 }

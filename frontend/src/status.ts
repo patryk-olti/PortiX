@@ -1,5 +1,5 @@
 import { getStatusUpdates, replaceStatusUpdates } from './store'
-import { fetchNews } from './api'
+import { fetchStatusUpdates } from './api'
 import type { StatusUpdate } from './types'
 
 const UPDATES_PER_PAGE = 6
@@ -102,15 +102,8 @@ export function setupStatusHandlers(): void {
       if (updates.length === 0) {
         list.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
       }
-      const news = await fetchNews(30)
-      const normalized: StatusUpdate[] = news.map(item => ({
-        id: item.id,
-        title: item.title,
-        summary: item.summary,
-        importance: item.importance,
-        date: item.publishedOn ? item.publishedOn.slice(0, 10) : new Date().toISOString().slice(0, 10),
-      }))
-      replaceStatusUpdates(normalized)
+      const latest = await fetchStatusUpdates(30)
+      replaceStatusUpdates(latest)
       updates = getStatusUpdates()
       renderPage(1, false)
     } catch (error) {

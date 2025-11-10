@@ -97,3 +97,23 @@ export async function fetchNews(limit?: number): Promise<NewsResponse[]> {
   return (json as { data: NewsResponse[] }).data
 }
 
+export function mapNewsToStatusUpdate(news: NewsResponse): StatusUpdate {
+  return {
+    id: news.id,
+    title: news.title,
+    summary: news.summary,
+    importance: news.importance,
+    date: news.publishedOn ? news.publishedOn.slice(0, 10) : new Date().toISOString().slice(0, 10),
+  }
+}
+
+export async function fetchStatusUpdates(limit?: number): Promise<StatusUpdate[]> {
+  const news = await fetchNews(limit)
+  return news.map(mapNewsToStatusUpdate).sort((a, b) => {
+    if (a.date === b.date) {
+      return a.id < b.id ? 1 : -1
+    }
+    return a.date < b.date ? 1 : -1
+  })
+}
+
