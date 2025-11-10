@@ -567,10 +567,14 @@ function renderAdminNewsList(updates: StatusUpdate[]): string {
       .map(
         update => `
           <li>
-            <span class="admin-news-date">${formatDate(update.date)}</span>
-            <span class="admin-news-title">${update.title}</span>
-            <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
-            <button type="button" class="admin-news-delete" data-news-id="${update.id}">Usuń</button>
+            <div class="admin-news-item">
+              <span class="admin-news-date">${formatDate(update.date)}</span>
+              <span class="admin-news-title">${update.title}</span>
+              <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
+            </div>
+            <div class="admin-news-actions">
+              <button type="button" class="admin-news-delete" data-news-id="${update.id}">Usuń</button>
+            </div>
           </li>
         `,
       )

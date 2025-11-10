@@ -19,6 +19,8 @@ function getRoute(): { path: string; params: Record<string, string> } {
   return { path, params }
 }
 
+let lastRouteKey = ''
+
 function render() {
   try {
     const app = document.querySelector<HTMLDivElement>('#app')
@@ -28,13 +30,17 @@ function render() {
     }
 
     const route = getRoute()
+    const routeKey = `${route.path}:${Object.values(route.params).join(':')}`
+    const shouldScroll = routeKey !== lastRouteKey
     console.log('Current route:', route)
 
     if (route.path === 'position' && route.params.id) {
       const html = renderPositionDetails(route.params.id)
       app.innerHTML = html
       // Scroll to top when navigating to a new page
-      window.scrollTo(0, 0)
+      if (shouldScroll) {
+        window.scrollTo(0, 0)
+      }
       // Use setTimeout to ensure DOM is fully updated before setting up handlers
       setTimeout(() => {
         setupPositionDetailsHandlers()
@@ -43,7 +49,9 @@ function render() {
     } else if (route.path === 'login') {
       const html = renderLogin()
       app.innerHTML = html
-      window.scrollTo(0, 0)
+      if (shouldScroll) {
+        window.scrollTo(0, 0)
+      }
       setTimeout(() => {
         setupLoginHandlers()
       }, 0)
@@ -51,7 +59,9 @@ function render() {
     } else if (route.path === 'status') {
       const html = renderStatus()
       app.innerHTML = html
-      window.scrollTo(0, 0)
+      if (shouldScroll) {
+        window.scrollTo(0, 0)
+      }
       setTimeout(() => {
         setupStatusHandlers()
       }, 0)
@@ -60,7 +70,9 @@ function render() {
       const html = renderAdmin()
       if (html) {
         app.innerHTML = html
-        window.scrollTo(0, 0)
+        if (shouldScroll) {
+          window.scrollTo(0, 0)
+        }
         setTimeout(() => {
           setupAdminHandlers()
         }, 0)
@@ -70,10 +82,13 @@ function render() {
       const html = renderHome()
       app.innerHTML = html
       // Scroll to top when navigating to home page
-      window.scrollTo(0, 0)
+      if (shouldScroll) {
+        window.scrollTo(0, 0)
+      }
       setupHomeHandlers()
       app.classList.remove('admin-root')
     }
+    lastRouteKey = routeKey
   } catch (error) {
     console.error('Error rendering:', error)
     const app = document.querySelector<HTMLDivElement>('#app')
