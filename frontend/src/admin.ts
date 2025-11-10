@@ -37,6 +37,8 @@ type PositionTypeOption = (typeof positionTypeOptions)[number]['value']
 type SectionId = (typeof sidebarSections)[number]['id']
 
 const ACTIVE_SECTION_STORAGE_KEY = 'adminActiveSection'
+let hasInitialNewsSync = false
+let isSyncingNews = false
 
 function getStoredActiveSection(): SectionId {
   if (typeof window === 'undefined') {
@@ -267,7 +269,9 @@ export function setupAdminHandlers(): void {
   setupAnalysisSection()
   setupStatusForm()
   refreshAdminNewsPreview()
-  void syncStatusUpdatesFromApi()
+  if (!hasInitialNewsSync) {
+    void syncStatusUpdatesFromApi()
+  }
 }
 
 function setupSidebarNavigation() {
@@ -535,7 +539,7 @@ function setupStatusForm() {
       if (dateInput) {
         dateInput.value = new Date().toISOString().slice(0, 10)
       }
-      await syncStatusUpdatesFromApi()
+      await syncStatusUpdatesFromApi({ force: true })
     } catch (error) {
       console.error('Nie udało się dodać aktualności:', error)
       const message = error instanceof Error ? error.message : 'Nie udało się dodać aktualności.'
@@ -579,19 +583,29 @@ function refreshAdminNewsPreview(): void {
   wrapper.innerHTML = renderAdminNewsList(updates)
 }
 
-async function syncStatusUpdatesFromApi(): Promise<void> {
+async function syncStatusUpdatesFromApi(options: { force?: boolean } = {}): Promise<void> {
+  if (isSyncingNews) {
+    return
+  }
+  if (hasInitialNewsSync && !options.force) {
+    return
+  }
+
   const wrapper = document.querySelector<HTMLDivElement>('#admin-news-wrapper')
   if (wrapper && !wrapper.dataset.loading) {
     wrapper.dataset.loading = 'true'
     wrapper.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
   }
 
+  isSyncingNews = true
   try {
     const updates = await fetchStatusUpdates(30)
     replaceStatusUpdates(updates)
+    hasInitialNewsSync = true
   } catch (error) {
     console.error('Nie udało się pobrać aktualności:', error)
   } finally {
+    isSyncingNews = false
     if (wrapper) {
       delete wrapper.dataset.loading
     }
