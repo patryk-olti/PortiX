@@ -44,6 +44,11 @@ let isSyncingNews = false
 let adminNewsHandlerAttached = false
 let adminNewsActionsTarget: HTMLDivElement | null = null
 
+let modalElement: HTMLDivElement | null = null
+let modalForm: HTMLFormElement | null = null
+let modalCloseBtn: HTMLButtonElement | null = null
+let modalCancelBtn: HTMLButtonElement | null = null
+
 function getStoredActiveSection(): SectionId {
   if (typeof window === 'undefined') {
     return 'create'
@@ -257,6 +262,54 @@ export function renderAdmin(): string {
         </section>
       </section>
     </main>
+
+    <div class="admin-news-modal" id="admin-news-modal" hidden>
+      <div class="admin-news-modal-content">
+        <header>
+          <h3>Edytuj aktualność</h3>
+          <button type="button" class="admin-news-modal-close" id="admin-news-modal-close" aria-label="Zamknij">×</button>
+        </header>
+        <form id="admin-news-edit-form">
+          <input type="hidden" name="id" />
+          <label class="form-field">
+            <span>Tytuł</span>
+            <input type="text" name="title" required />
+          </label>
+          <label class="form-field">
+            <span>Opis</span>
+            <textarea name="summary" rows="4" required></textarea>
+          </label>
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Data</span>
+              <input type="date" name="date" required />
+            </label>
+            <label class="form-field">
+              <span>Ważność</span>
+              <select name="importance" required>
+                <option value="critical">Pilne</option>
+                <option value="important">Ważne</option>
+                <option value="informational">Informacyjne</option>
+              </select>
+            </label>
+          </div>
+          <div class="admin-form-actions modal-actions">
+            <button type="button" class="secondary" id="admin-news-modal-cancel">Anuluj</button>
+            <button type="submit" class="primary">Zapisz zmiany</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <small>© ${new Date().getFullYear()} PortiX. Wszystkie prawa zastrzeżone.</small>
+      <nav>
+        <a href="#/status">Status projektu</a>
+        <a href="#">Dokumentacja</a>
+        <a href="#">Kontakt</a>
+        <a href="#/login">Logowanie</a>
+      </nav>
+    </footer>
   `
 }
 
@@ -274,6 +327,7 @@ export function setupAdminHandlers(): void {
   setupStatusForm()
   refreshAdminNewsPreview()
   bindAdminNewsActions()
+  initAdminNewsModal()
   if (!hasInitialNewsSync) {
     void syncStatusUpdatesFromApi()
   }
@@ -669,61 +723,7 @@ async function handleEditNews(target: HTMLButtonElement) {
     return
   }
 
-  const newTitle = window.prompt('Tytuł', existing.title)
-  if (newTitle === null) {
-    return
-  }
-
-  const newSummary = window.prompt('Opis', existing.summary)
-  if (newSummary === null) {
-    return
-  }
-
-  const newDate = window.prompt('Data (YYYY-MM-DD)', existing.date)
-  if (newDate === null) {
-    return
-  }
-
-  const importancePrompt = window.prompt(
-    'Ważność (critical / important / informational)',
-    existing.importance,
-  )
-  if (importancePrompt === null) {
-    return
-  }
-  const normalizedImportance = importancePrompt.trim().toLowerCase() as StatusUpdate['importance']
-  if (!['critical', 'important', 'informational'].includes(normalizedImportance)) {
-    alert('Niepoprawny typ ważności. Użyj: critical / important / informational.')
-    return
-  }
-
-  const payload = {
-    title: newTitle.trim(),
-    summary: newSummary.trim(),
-    publishedOn: newDate.trim(),
-    importance: normalizedImportance,
-  }
-
-  try {
-    target.disabled = true
-    target.textContent = 'Zapisywanie...'
-    const updated = await updateNews(newsId, payload)
-    updateStatusUpdate(newsId, {
-      title: updated.title,
-      summary: updated.summary,
-      date: updated.publishedOn.slice(0, 10),
-      importance: updated.importance,
-    })
-    refreshAdminNewsPreview()
-    await syncStatusUpdatesFromApi({ force: true })
-  } catch (error) {
-    console.error('Nie udało się zaktualizować aktualności:', error)
-    const message = error instanceof Error ? error.message : 'Nie udało się zaktualizować aktualności.'
-    alert(message)
-  } finally {
-    target.disabled = false
-    target.textContent = 'Edytuj'
-  }
+  openAdminNewsModal(existing)
 }
 
 async function syncStatusUpdatesFromApi(options: { force?: boolean } = {}): Promise<void> {
@@ -1075,4 +1075,109 @@ function getTrendLabel(trend: TrendOption): string {
     bearish: 'Spadkowy',
   }
   return labels[trend]
+}
+
+function initAdminNewsModal(): void {
+  modalElement = document.querySelector<HTMLDivElement>('#admin-news-modal')
+  modalForm = document.querySelector<HTMLFormElement>('#admin-news-edit-form')
+  modalCloseBtn = document.querySelector<HTMLButtonElement>('#admin-news-modal-close')
+  modalCancelBtn = document.querySelector<HTMLButtonElement>('#admin-news-modal-cancel')
+
+  if (!modalElement || !modalForm) {
+    return
+  }
+
+  modalForm.addEventListener('submit', async event => {
+    event.preventDefault()
+    const formData = new FormData(modalForm!)
+    const id = formData.get('id') as string
+    if (!id) {
+      alert('Brak identyfikatora aktualności.')
+      return
+    }
+
+    const title = (formData.get('title') as string)?.trim()
+    const summary = (formData.get('summary') as string)?.trim()
+    const date = formData.get('date') as string
+    const importance = formData.get('importance') as StatusUpdate['importance']
+
+    if (!title || !summary || !date || !importance) {
+      alert('Uzupełnij wszystkie pola formularza.')
+      return
+    }
+
+    try {
+      setModalSubmitting(true)
+      const updated = await updateNews(id, {
+        title,
+        summary,
+        publishedOn: date,
+        importance,
+      })
+
+      updateStatusUpdate(id, {
+        title: updated.title,
+        summary: updated.summary,
+        date: updated.publishedOn.slice(0, 10),
+        importance: updated.importance,
+      })
+      refreshAdminNewsPreview()
+      await syncStatusUpdatesFromApi({ force: true })
+      closeAdminNewsModal()
+    } catch (error) {
+      console.error('Nie udało się zaktualizować aktualności:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się zaktualizować aktualności.'
+      alert(message)
+    } finally {
+      setModalSubmitting(false)
+    }
+  })
+
+  modalCloseBtn?.addEventListener('click', () => closeAdminNewsModal())
+  modalCancelBtn?.addEventListener('click', () => closeAdminNewsModal())
+
+  modalElement.addEventListener('click', event => {
+    if (event.target === modalElement) {
+      closeAdminNewsModal()
+    }
+  })
+}
+
+function openAdminNewsModal(update: StatusUpdate): void {
+  if (!modalElement || !modalForm) {
+    return
+  }
+  modalElement.hidden = false
+  modalElement.classList.add('open')
+  const idInput = modalForm.querySelector<HTMLInputElement>('input[name="id"]')
+  const titleInput = modalForm.querySelector<HTMLInputElement>('input[name="title"]')
+  const summaryInput = modalForm.querySelector<HTMLTextAreaElement>('textarea[name="summary"]')
+  const dateInput = modalForm.querySelector<HTMLInputElement>('input[name="date"]')
+  const importanceSelect = modalForm.querySelector<HTMLSelectElement>('select[name="importance"]')
+
+  if (idInput) idInput.value = update.id
+  if (titleInput) titleInput.value = update.title
+  if (summaryInput) summaryInput.value = update.summary
+  if (dateInput) dateInput.value = update.date
+  if (importanceSelect) importanceSelect.value = update.importance
+}
+
+function closeAdminNewsModal(): void {
+  if (!modalElement || !modalForm) {
+    return
+  }
+  modalElement.classList.remove('open')
+  modalElement.hidden = true
+  modalForm.reset()
+}
+
+function setModalSubmitting(submitting: boolean): void {
+  if (!modalForm) {
+    return
+  }
+  const submitButton = modalForm.querySelector<HTMLButtonElement>('button[type="submit"]')
+  if (submitButton) {
+    submitButton.disabled = submitting
+    submitButton.textContent = submitting ? 'Zapisywanie...' : 'Zapisz zmiany'
+  }
 }
