@@ -2,7 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const { pool } = require('./lib/db')
 const { ensureNewsTable } = require('./lib/schema')
-const { createNewsItem, IMPORTANCE_VALUES } = require('./lib/news')
+const { createNewsItem, IMPORTANCE_VALUES, listNewsItems } = require('./lib/news')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -60,6 +60,22 @@ app.post('/api/news', async (req, res) => {
     console.error('Failed to create news:', error)
     res.status(500).json({
       error: 'Failed to create news item',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.get('/api/news', async (req, res) => {
+  const limitParam = req.query.limit
+  const limit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : 20
+
+  try {
+    const data = await listNewsItems(Number.isNaN(limit) || limit <= 0 ? 20 : Math.min(limit, 100))
+    res.json({ data })
+  } catch (error) {
+    console.error('Failed to fetch news:', error)
+    res.status(500).json({
+      error: 'Failed to fetch news',
       details: error instanceof Error ? error.message : String(error),
     })
   }

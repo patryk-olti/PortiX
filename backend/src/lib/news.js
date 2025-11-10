@@ -42,9 +42,31 @@ async function createNewsItem({ title, summary, importance, publishedOn }) {
   return result.rows[0]
 }
 
+async function listNewsItems(limit = 20) {
+  const result = await pool.query(
+    `
+      select
+        id,
+        title,
+        summary,
+        importance,
+        published_on::text as "publishedOn",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      from news
+      order by published_on desc, created_at desc
+      limit $1
+    `,
+    [limit],
+  )
+
+  return result.rows
+}
+
 module.exports = {
   createNewsItem,
   validateImportance,
   IMPORTANCE_VALUES,
+  listNewsItems,
 }
 
