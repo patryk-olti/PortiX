@@ -7,6 +7,7 @@ import {
   upsertTechnicalAnalysis,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
+import { createNews } from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
@@ -476,7 +477,9 @@ function setupStatusForm() {
     return
   }
 
-  form.addEventListener('submit', event => {
+  const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+
+  form.addEventListener('submit', async event => {
     event.preventDefault()
     const formData = new FormData(form)
 
@@ -490,20 +493,47 @@ function setupStatusForm() {
       return
     }
 
-    const update: StatusUpdate = {
-      id: `status-${Date.now()}`,
-      title,
-      date,
-      importance,
-      summary,
-    }
+    const publishedOn = date || new Date().toISOString().slice(0, 10)
 
-    addStatusUpdate(update)
-    alert('Dodano nową aktualność.')
-    form.reset()
-    const dateInput = form.querySelector<HTMLInputElement>('input[name="date"]')
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().slice(0, 10)
+    try {
+      if (submitButton) {
+        submitButton.disabled = true
+        submitButton.textContent = 'Dodawanie...'
+      }
+
+      const news = await createNews({
+        title,
+        summary,
+        importance,
+        publishedOn,
+      })
+
+      const normalizedDate = news.publishedOn ? news.publishedOn.slice(0, 10) : publishedOn
+
+      const update: StatusUpdate = {
+        id: news.id,
+        title: news.title,
+        date: normalizedDate,
+        importance: news.importance,
+        summary: news.summary,
+      }
+
+      addStatusUpdate(update)
+      alert('Dodano nową aktualność.')
+      form.reset()
+      const dateInput = form.querySelector<HTMLInputElement>('input[name="date"]')
+      if (dateInput) {
+        dateInput.value = new Date().toISOString().slice(0, 10)
+      }
+    } catch (error) {
+      console.error('Nie udało się dodać aktualności:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się dodać aktualności.'
+      alert(message)
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Dodaj aktualność'
+      }
     }
   })
 }

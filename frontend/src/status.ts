@@ -1,4 +1,5 @@
-import { getStatusUpdates } from './store'
+import { getStatusUpdates, replaceStatusUpdates } from './store'
+import { fetchNews } from './api'
 import type { StatusUpdate } from './types'
 
 const UPDATES_PER_PAGE = 6
@@ -61,18 +62,21 @@ export function setupStatusHandlers(): void {
     return
   }
 
-  const updates = getStatusUpdates()
-  const totalPages = Math.ceil(updates.length / UPDATES_PER_PAGE) || 1
+  let updates = getStatusUpdates()
   let currentPage = 1
 
+  const getTotalPages = () => Math.max(1, Math.ceil(updates.length / UPDATES_PER_PAGE))
+
   const renderPage = (page: number, shouldScroll = true) => {
-    currentPage = page
+    const totalPages = getTotalPages()
+    currentPage = Math.min(Math.max(page, 1), totalPages)
     const start = (page - 1) * UPDATES_PER_PAGE
     const pageItems = updates.slice(start, start + UPDATES_PER_PAGE)
     list.innerHTML = renderStatusCards(pageItems)
-    indicator.textContent = `Strona ${currentPage} z ${totalPages}`
+    const total = getTotalPages()
+    indicator.textContent = `Strona ${currentPage} z ${total}`
     prevButton.disabled = currentPage === 1
-    nextButton.disabled = currentPage === totalPages
+    nextButton.disabled = currentPage === total
     if (shouldScroll) {
       list.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
@@ -85,15 +89,47 @@ export function setupStatusHandlers(): void {
   })
 
   nextButton.addEventListener('click', () => {
-    if (currentPage < totalPages) {
+    if (currentPage < getTotalPages()) {
       renderPage(currentPage + 1)
     }
   })
 
   renderPage(1, false)
+
+  void (async () => {
+    try {
+      list.dataset.loading = 'true'
+      if (updates.length === 0) {
+        list.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
+      }
+      const news = await fetchNews(30)
+      const normalized: StatusUpdate[] = news.map(item => ({
+        id: item.id,
+        title: item.title,
+        summary: item.summary,
+        importance: item.importance,
+        date: item.publishedOn ? item.publishedOn.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      }))
+      replaceStatusUpdates(normalized)
+      updates = getStatusUpdates()
+      renderPage(1, false)
+    } catch (error) {
+      console.error('Nie udało się pobrać aktualności:', error)
+      if (updates.length === 0) {
+        list.innerHTML =
+          '<p class="empty-state">Nie udało się załadować aktualności. Spróbuj ponownie później.</p>'
+      }
+    } finally {
+      delete list.dataset.loading
+    }
+  })()
 }
 
 function renderStatusCards(items: StatusUpdate[]): string {
+  if (items.length === 0) {
+    return '<p class="empty-state">Brak dostępnych aktualności.</p>'
+  }
+
   return items
     .map(
       item => `

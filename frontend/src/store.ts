@@ -243,6 +243,14 @@ export function addStatusUpdate(update: StatusUpdate) {
   })
 }
 
+export function replaceStatusUpdates(updates: StatusUpdate[]) {
+  updateState(current => {
+    const next = clone(current)
+    next.statusUpdates = [...updates].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    return next
+  })
+}
+
 export function updateStatusUpdate(id: string, partial: Partial<StatusUpdate>) {
   updateState(current => {
     const next = clone(current)
