@@ -116,6 +116,22 @@ export function setupStatusHandlers(): void {
       delete list.dataset.loading
     }
   })()
+
+  const statusButtons = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>('.status-action-button')
+  )
+
+  statusButtons.forEach(button => {
+    if (button.href.startsWith('mailto:')) {
+      return
+    }
+
+    button.addEventListener('click', event => {
+      event.preventDefault()
+      const target = button.getAttribute('href') || '#/'
+      window.location.hash = target
+    })
+  })
 }
 
 function renderStatusCards(items: StatusUpdate[]): string {
