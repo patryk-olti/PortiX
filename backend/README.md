@@ -31,6 +31,24 @@ npm start
 }
 ```
 
+`GET /api/news?limit=20`
+
+```json
+{
+  "data": [
+    {
+      "id": "<uuid>",
+      "title": "...",
+      "summary": "...",
+      "importance": "important",
+      "publishedOn": "2025-11-10",
+      "createdAt": "2025-11-10T11:47:43.027Z",
+      "updatedAt": "2025-11-10T11:47:43.027Z"
+    }
+  ]
+}
+```
+
 Response `201`:
 
 ```json
