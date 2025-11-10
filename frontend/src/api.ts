@@ -1,20 +1,47 @@
 import type { StatusUpdate } from './types'
 
-const API_BASE_URL =
+const EXPLICIT_API_BASE =
   typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL
     ? String(import.meta.env.VITE_API_BASE_URL)
     : ''
+
+const DEV_BACKEND_PORT = typeof import.meta !== 'undefined' && import.meta.env
+  ? String(import.meta.env.VITE_BACKEND_PORT ?? '3000')
+  : '3000'
+
+const DEV_FRONTEND_PORTS = new Set(['5173', '4173'])
 
 function resolveEndpoint(path: string): string {
   if (/^https?:\/\//i.test(path)) {
     return path
   }
-  if (!API_BASE_URL) {
+
+  const baseUrl = getApiBaseUrl()
+  if (!baseUrl) {
     return path
   }
-  const base = API_BASE_URL.replace(/\/$/, '')
+
+  const base = baseUrl.replace(/\/$/, '')
   const suffix = path.startsWith('/') ? path : `/${path}`
   return `${base}${suffix}`
+}
+
+function getApiBaseUrl(): string {
+  if (EXPLICIT_API_BASE) {
+    return EXPLICIT_API_BASE
+  }
+
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  const { protocol, hostname, port } = window.location
+
+  if (port && DEV_FRONTEND_PORTS.has(port)) {
+    return `${protocol}//${hostname}:${DEV_BACKEND_PORT}`
+  }
+
+  return window.location.origin
 }
 
 export interface CreateNewsPayload {
