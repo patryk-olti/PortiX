@@ -4,11 +4,12 @@ import {
   getPositions,
   getStatusUpdates,
   getTechnicalAnalysis,
+  removeStatusUpdate,
   replaceStatusUpdates,
   upsertTechnicalAnalysis,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
-import { createNews, fetchStatusUpdates } from './api'
+import { createNews, fetchStatusUpdates, deleteNews } from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
@@ -39,6 +40,7 @@ type SectionId = (typeof sidebarSections)[number]['id']
 const ACTIVE_SECTION_STORAGE_KEY = 'adminActiveSection'
 let hasInitialNewsSync = false
 let isSyncingNews = false
+let adminNewsHandlerAttached = false
 
 function getStoredActiveSection(): SectionId {
   if (typeof window === 'undefined') {
@@ -269,6 +271,7 @@ export function setupAdminHandlers(): void {
   setupAnalysisSection()
   setupStatusForm()
   refreshAdminNewsPreview()
+  bindAdminNewsActions()
   if (!hasInitialNewsSync) {
     void syncStatusUpdatesFromApi()
   }
@@ -567,6 +570,7 @@ function renderAdminNewsList(updates: StatusUpdate[]): string {
             <span class="admin-news-date">${formatDate(update.date)}</span>
             <span class="admin-news-title">${update.title}</span>
             <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
+            <button type="button" class="admin-news-delete" data-news-id="${update.id}">Usuń</button>
           </li>
         `,
       )
@@ -581,6 +585,52 @@ function refreshAdminNewsPreview(): void {
   }
   const updates = getStatusUpdates()
   wrapper.innerHTML = renderAdminNewsList(updates)
+}
+
+function bindAdminNewsActions(): void {
+  if (adminNewsHandlerAttached) {
+    return
+  }
+  const wrapper = document.querySelector<HTMLDivElement>('#admin-news-wrapper')
+  if (!wrapper) {
+    return
+  }
+
+  wrapper.addEventListener('click', async event => {
+    const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete')
+    if (!target) {
+      return
+    }
+    const newsId = target.dataset.newsId
+    if (!newsId) {
+      return
+    }
+
+    const confirmed = window.confirm('Na pewno chcesz usunąć tę aktualność?')
+    if (!confirmed) {
+      return
+    }
+
+    const originalText = target.textContent
+    target.disabled = true
+    target.textContent = 'Usuwanie...'
+
+    try {
+      await deleteNews(newsId)
+      removeStatusUpdate(newsId)
+      refreshAdminNewsPreview()
+      await syncStatusUpdatesFromApi({ force: true })
+    } catch (error) {
+      console.error('Nie udało się usunąć aktualności:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się usunąć aktualności.'
+      alert(message)
+    } finally {
+      target.disabled = false
+      target.textContent = originalText ?? 'Usuń'
+    }
+  })
+
+  adminNewsHandlerAttached = true
 }
 
 async function syncStatusUpdatesFromApi(options: { force?: boolean } = {}): Promise<void> {

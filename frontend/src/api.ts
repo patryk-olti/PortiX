@@ -61,6 +61,25 @@ export interface NewsResponse {
   updatedAt: string
 }
 
+export async function deleteNews(id: string): Promise<void> {
+  const response = await fetch(resolveEndpoint(`/api/news/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    let message = 'Failed to delete news'
+    try {
+      const json = (await response.json()) as { error?: string }
+      if (json?.error) {
+        message = json.error
+      }
+    } catch (_error) {
+      // ignore parse error
+    }
+    throw new Error(message)
+  }
+}
+
 export async function createNews(payload: CreateNewsPayload): Promise<NewsResponse> {
   const response = await fetch(resolveEndpoint('/api/news'), {
     method: 'POST',
