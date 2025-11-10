@@ -66,7 +66,7 @@ export function setupLoginHandlers(): void {
     const rawUsername = (formData.get('username') as string) ?? '';
     const username = rawUsername.trim() || 'Administrator';
     // Walidacja została tymczasowo wyłączona, aby umożliwić logowanie bez podawania hasła.
-    const password = (formData.get('password') as string) ?? '';
+    void formData.get('password');
     
     localStorage.setItem('adminAuthenticated', 'true');
     localStorage.setItem('adminUsername', username || 'Administrator');

@@ -64,7 +64,9 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
       : clone(defaultState.technicalAnalysis)
 
   return {
-    positions: Array.isArray(parsed.positions) ? clone(parsed.positions) : clone(defaultState.positions),
+    positions: migratePositions(
+      Array.isArray(parsed.positions) ? clone(parsed.positions) : clone(defaultState.positions),
+    ),
     technicalAnalysis: migrateTechnicalAnalyses(technicalAnalysisSource),
     modifications:
       parsed.modifications && typeof parsed.modifications === 'object'
@@ -76,6 +78,22 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
         : clone(defaultState.insights),
     statusUpdates:
       Array.isArray(parsed.statusUpdates) ? clone(parsed.statusUpdates) : clone(defaultState.statusUpdates),
+  }
+}
+
+function migratePositions(source: Position[]): Position[] {
+  return source.map(position => ({
+    ...position,
+    positionType: position.positionType ?? 'long',
+  }))
+}
+
+function createEmptyAnalysisRecord(): TechnicalAnalysis {
+  return {
+    trend: 'neutral',
+    targets: {},
+    stopLoss: '',
+    summary: '',
   }
 }
 
@@ -94,6 +112,7 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           stopLoss: value.stopLoss ?? '',
           summary: value.summary ?? '',
           analysisImage: value.analysisImage,
+          tradingViewUrl: value.tradingViewUrl,
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,
@@ -108,18 +127,14 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           summary:
             value.summary ??
             (value.indicators ? `RSI: ${value.indicators.rsi}, MACD: ${value.indicators.macd}` : ''),
+          tradingViewUrl: value.tradingViewUrl,
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,
         }
       }
     } else {
-      migrated[key] = {
-        trend: 'neutral',
-        targets: {},
-        stopLoss: '',
-        summary: '',
-      }
+      migrated[key] = createEmptyAnalysisRecord()
     }
   })
   return migrated

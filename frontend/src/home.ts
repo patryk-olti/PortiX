@@ -69,7 +69,14 @@ export function renderHome(): string {
                 .map(
                   position => `
                 <tr data-category="${position.category}">
-                  <td>${position.name}</td>
+                  <td>
+                    <div class="portfolio-name">
+                      <span class="portfolio-name-primary">${position.name}</span>
+                      <span class="position-type-badge ${position.positionType}">
+                        ${formatPositionType(position.positionType)}
+                      </span>
+                    </div>
+                  </td>
                   <td>${position.categoryName}</td>
                   <td>${position.purchasePrice}</td>
                   <td>${position.currentPrice}</td>
@@ -123,5 +130,9 @@ export function setupHomeHandlers(): void {
       row.style.display = row.dataset.category === value ? '' : 'none';
     });
   });
+}
+
+function formatPositionType(positionType: 'long' | 'short'): string {
+  return positionType === 'short' ? 'SHORT' : 'LONG';
 }
 

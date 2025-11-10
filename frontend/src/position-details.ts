@@ -17,6 +17,7 @@ export function renderPositionDetails(positionId: string): string {
   const analysis = getTechnicalAnalysis(position.id);
   const modifications = getModifications(position.id);
   const insights = getInsights(position.id);
+  const positionTypeLabel = position.positionType === 'short' ? 'SHORT' : 'LONG';
 
   const trendClass = analysis?.trend === 'bullish' ? 'positive' : analysis?.trend === 'bearish' ? 'negative' : 'neutral';
   const trendText = analysis?.trend === 'bullish' ? 'Wzrostowy' : analysis?.trend === 'bearish' ? 'Spadkowy' : 'Neutralny';
@@ -38,6 +39,7 @@ export function renderPositionDetails(positionId: string): string {
         <div class="position-title">
           <h1>${position.name}</h1>
           <span class="position-symbol">${position.symbol}</span>
+          <span class="position-type-badge ${position.positionType}">${positionTypeLabel}</span>
           ${completionBadge}
         </div>
         <div class="position-stats">
@@ -95,6 +97,17 @@ export function renderPositionDetails(positionId: string): string {
           <p>${analysis?.summary || 'Brak dostępnej analizy technicznej.'}</p>
           ${analysis?.completed && analysis.completionNote ? `<p class="analysis-completion-note">Powód realizacji: ${analysis.completionNote}</p>` : ''}
         </div>
+        ${
+          analysis?.tradingViewUrl
+            ? `<div class="analysis-tradingview">
+                <h3>Analiza TradingView</h3>
+                <iframe src="${analysis.tradingViewUrl}" loading="lazy" title="Analiza TradingView ${position.symbol}"></iframe>
+                <a href="${analysis.tradingViewUrl}" class="tradingview-link" target="_blank" rel="noopener noreferrer">
+                  Otwórz pełną analizę w nowej karcie
+                </a>
+              </div>`
+            : ''
+        }
         ${
           analysis?.analysisImage
             ? `<figure class="analysis-figure">

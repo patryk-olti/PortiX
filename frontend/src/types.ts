@@ -8,6 +8,7 @@ export interface Position {
   currentPrice: string;
   return: string;
   returnValue: number;
+  positionType: 'long' | 'short';
 }
 
 export interface TechnicalAnalysis {
@@ -20,6 +21,7 @@ export interface TechnicalAnalysis {
   stopLoss?: string;
   summary: string;
   analysisImage?: string;
+  tradingViewUrl?: string;
   completed?: boolean;
   completionNote?: string;
   completionDate?: string;

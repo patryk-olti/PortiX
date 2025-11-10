@@ -11,6 +11,7 @@ export const initialPositions: Position[] = [
     currentPrice: '462.90 USD',
     return: '+9.4%',
     returnValue: 9.4,
+    positionType: 'long',
   },
   {
     id: 'msft',
@@ -22,6 +23,7 @@ export const initialPositions: Position[] = [
     currentPrice: '339.70 USD',
     return: '+6.1%',
     returnValue: 6.1,
+    positionType: 'long',
   },
   {
     id: 'dax',
@@ -33,6 +35,7 @@ export const initialPositions: Position[] = [
     currentPrice: '18 030 pkt',
     return: '-1.2%',
     returnValue: -1.2,
+    positionType: 'short',
   },
   {
     id: 'gold',
@@ -44,6 +47,7 @@ export const initialPositions: Position[] = [
     currentPrice: '2 036 USD',
     return: '+3.8%',
     returnValue: 3.8,
+    positionType: 'long',
   },
   {
     id: 'cash',
@@ -55,6 +59,7 @@ export const initialPositions: Position[] = [
     currentPrice: '1.00',
     return: '0.0%',
     returnValue: 0,
+    positionType: 'long',
   },
 ];
 
@@ -69,6 +74,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     stopLoss: '445 USD',
     summary:
       'SOXX pozostaje w silnym trendzie wzrostowym dzięki popytowi na półprzewodniki. Scenariusz bazowy zakłada kontynuację wzrostu po krótkiej konsolidacji.',
+    tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=NASDAQ%3ASOXX',
   },
   msft: {
     trend: 'bullish',
@@ -80,6 +86,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     stopLoss: '318 USD',
     summary:
       'Microsoft korzysta na rosnącej adopcji usług chmurowych i AI. Utrzymanie powyżej ostatniego wsparcia wspiera scenariusz dalszego wzrostu.',
+    tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=NASDAQ%3AMSFT',
   },
   dax: {
     trend: 'bearish',
@@ -91,6 +98,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     stopLoss: '18 450 pkt',
     summary:
       'Kontrakt na DAX służy jako zabezpieczenie portfela. Scenariusz zakłada dalszą korektę w kierunku niższych poziomów wsparcia.',
+    tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=DEU%3ADAX',
   },
   gold: {
     trend: 'bullish',
@@ -102,6 +110,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     stopLoss: '1 995 USD',
     summary:
       'Złoto wspierane jest przez oczekiwania związane z polityką monetarną i popyt na aktywa defensywne. Kluczowe wsparcie w okolicach 2000 USD pozostaje nienaruszone.',
+    tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=TVC%3AGOLD',
   },
 };
 
