@@ -3,7 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const { pool } = require('./lib/db')
 const { ensureNewsTable } = require('./lib/schema')
-const { createNewsItem, IMPORTANCE_VALUES, listNewsItems } = require('./lib/news')
+const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, deleteNewsItem } = require('./lib/news')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -113,6 +113,28 @@ app.get('/api/news', async (req, res) => {
     console.error('Failed to fetch news:', error)
     res.status(500).json({
       error: 'Failed to fetch news',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.delete('/api/news/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing news id' })
+    return
+  }
+  try {
+    const deleted = await deleteNewsItem(id)
+    if (!deleted) {
+      res.status(404).json({ error: 'News item not found' })
+      return
+    }
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete news:', error)
+    res.status(500).json({
+      error: 'Failed to delete news',
       details: error instanceof Error ? error.message : String(error),
     })
   }

@@ -52,6 +52,14 @@ npm start
 }
 ```
 
+`DELETE /api/news/:id`
+
+Response `200`:
+
+```json
+{ "success": true }
+```
+
 Response `201`:
 
 ```json

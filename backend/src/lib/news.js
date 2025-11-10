@@ -63,10 +63,23 @@ async function listNewsItems(limit = 20) {
   return result.rows
 }
 
+async function deleteNewsItem(id) {
+  const result = await pool.query(
+    `
+      delete from news
+      where id = $1::uuid
+      returning id
+    `,
+    [id],
+  )
+  return result.rowCount > 0
+}
+
 module.exports = {
   createNewsItem,
   validateImportance,
   IMPORTANCE_VALUES,
   listNewsItems,
+  deleteNewsItem,
 }
 
