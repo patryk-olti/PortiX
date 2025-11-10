@@ -3,8 +3,8 @@ import { fetchStatusUpdates } from './api';
 import type { StatusUpdate } from './types';
 
 export function renderHome(): string {
-  const positions = getPositions();
-  const news = getStatusUpdates().slice(0, 3);
+  const positions = getPositions()
+  const news = getStatusUpdates().slice(0, 3)
   return `
     <main class="page">
       <section class="hero">
@@ -126,31 +126,31 @@ export function renderHome(): string {
 }
 
 export function setupHomeHandlers(): void {
-  const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter');
+  const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter')
   const portfolioRows = Array.from(
     document.querySelectorAll<HTMLTableRowElement>('.portfolio-table tbody tr'),
-  );
+  )
 
-  categoryFilter?.addEventListener('change', (event) => {
-    const value = (event.target as HTMLSelectElement).value;
+  categoryFilter?.addEventListener('change', event => {
+    const value = (event.target as HTMLSelectElement).value
 
-    portfolioRows.forEach((row) => {
+    portfolioRows.forEach(row => {
       if (value === 'all') {
-        row.style.display = '';
-        return;
+        row.style.display = ''
+        return
       }
 
-      row.style.display = row.dataset.category === value ? '' : 'none';
-    });
-  });
+      row.style.display = row.dataset.category === value ? '' : 'none'
+    })
+  })
 
-  refreshHomeNews();
-  void hydrateHomeNews();
+  refreshHomeNews()
+  void hydrateHomeNews()
 }
 
 function renderHomeNewsCards(items: StatusUpdate[]): string {
   if (!items.length) {
-    return '<p class="empty-state">Brak aktualności.</p>';
+    return '<p class="empty-state">Brak aktualności.</p>'
   }
 
   return items
@@ -167,49 +167,49 @@ function renderHomeNewsCards(items: StatusUpdate[]): string {
         </article>
       `,
     )
-    .join('');
+    .join('')
 }
 
 function refreshHomeNews(): void {
-  const container = document.querySelector<HTMLDivElement>('#home-news-list');
+  const container = document.querySelector<HTMLDivElement>('#home-news-list')
   if (!container) {
-    return;
+    return
   }
-  const updates = getStatusUpdates();
-  container.innerHTML = renderHomeNewsCards(updates);
+  const updates = getStatusUpdates()
+  container.innerHTML = renderHomeNewsCards(updates)
 }
 
 async function hydrateHomeNews(): Promise<void> {
-  const container = document.querySelector<HTMLDivElement>('#home-news-list');
+  const container = document.querySelector<HTMLDivElement>('#home-news-list')
   if (!container) {
-    return;
+    return
   }
 
   if (!container.dataset.loading) {
-    container.dataset.loading = 'true';
-    container.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>';
+    container.dataset.loading = 'true'
+    container.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
   }
 
   try {
-    const updates = await fetchStatusUpdates(6);
-    replaceStatusUpdates(updates);
+    const updates = await fetchStatusUpdates(6)
+    replaceStatusUpdates(updates)
   } catch (error) {
-    console.error('Nie udało się pobrać aktualności:', error);
+    console.error('Nie udało się pobrać aktualności:', error)
     container.innerHTML =
-      '<p class="empty-state">Nie udało się pobrać aktualności. Spróbuj ponownie później.</p>';
+      '<p class="empty-state">Nie udało się pobrać aktualności. Spróbuj ponownie później.</p>'
   } finally {
-    delete container.dataset.loading;
-    refreshHomeNews();
+    delete container.dataset.loading
+    refreshHomeNews()
   }
 }
 
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
+  const date = new Date(dateString)
   return date.toLocaleDateString('pl-PL', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
+  })
 }
 
 function getImportanceLabel(importance: StatusUpdate['importance']): string {
@@ -217,9 +217,9 @@ function getImportanceLabel(importance: StatusUpdate['importance']): string {
     critical: 'Pilne',
     important: 'Ważne',
     informational: 'Informacyjne',
-  };
+  }
 
-  return labels[importance];
+  return labels[importance]
 }
 
 function formatPositionType(positionType: 'long' | 'short'): string {

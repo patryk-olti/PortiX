@@ -41,6 +41,7 @@ const ACTIVE_SECTION_STORAGE_KEY = 'adminActiveSection'
 let hasInitialNewsSync = false
 let isSyncingNews = false
 let adminNewsHandlerAttached = false
+let adminNewsActionsTarget: HTMLDivElement | null = null
 
 function getStoredActiveSection(): SectionId {
   if (typeof window === 'undefined') {
@@ -592,49 +593,56 @@ function refreshAdminNewsPreview(): void {
 }
 
 function bindAdminNewsActions(): void {
-  if (adminNewsHandlerAttached) {
-    return
-  }
   const wrapper = document.querySelector<HTMLDivElement>('#admin-news-wrapper')
   if (!wrapper) {
+    adminNewsHandlerAttached = false
+    adminNewsActionsTarget?.removeEventListener('click', handleAdminNewsClick)
+    adminNewsActionsTarget = null
     return
   }
 
-  wrapper.addEventListener('click', async event => {
-    const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete')
-    if (!target) {
-      return
-    }
-    const newsId = target.dataset.newsId
-    if (!newsId) {
-      return
-    }
+  if (adminNewsActionsTarget === wrapper && adminNewsHandlerAttached) {
+    return
+  }
 
-    const confirmed = window.confirm('Na pewno chcesz usunąć tę aktualność?')
-    if (!confirmed) {
-      return
-    }
-
-    const originalText = target.textContent
-    target.disabled = true
-    target.textContent = 'Usuwanie...'
-
-    try {
-      await deleteNews(newsId)
-      removeStatusUpdate(newsId)
-      refreshAdminNewsPreview()
-      await syncStatusUpdatesFromApi({ force: true })
-    } catch (error) {
-      console.error('Nie udało się usunąć aktualności:', error)
-      const message = error instanceof Error ? error.message : 'Nie udało się usunąć aktualności.'
-      alert(message)
-    } finally {
-      target.disabled = false
-      target.textContent = originalText ?? 'Usuń'
-    }
-  })
-
+  adminNewsActionsTarget?.removeEventListener('click', handleAdminNewsClick)
+  adminNewsActionsTarget = wrapper
+  wrapper.addEventListener('click', handleAdminNewsClick)
   adminNewsHandlerAttached = true
+}
+
+async function handleAdminNewsClick(event: Event) {
+  const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete')
+  if (!target) {
+    return
+  }
+  const newsId = target.dataset.newsId
+  if (!newsId) {
+    return
+  }
+
+  const confirmed = window.confirm('Na pewno chcesz usunąć tę aktualność?')
+  if (!confirmed) {
+    return
+  }
+
+  const originalText = target.textContent
+  target.disabled = true
+  target.textContent = 'Usuwanie...'
+
+  try {
+    await deleteNews(newsId)
+    removeStatusUpdate(newsId)
+    refreshAdminNewsPreview()
+    await syncStatusUpdatesFromApi({ force: true })
+  } catch (error) {
+    console.error('Nie udało się usunąć aktualności:', error)
+    const message = error instanceof Error ? error.message : 'Nie udało się usunąć aktualności.'
+    alert(message)
+  } finally {
+    target.disabled = false
+    target.textContent = originalText ?? 'Usuń'
+  }
 }
 
 async function syncStatusUpdatesFromApi(options: { force?: boolean } = {}): Promise<void> {
