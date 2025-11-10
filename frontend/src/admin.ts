@@ -6,10 +6,11 @@ import {
   getTechnicalAnalysis,
   removeStatusUpdate,
   replaceStatusUpdates,
+  updateStatusUpdate,
   upsertTechnicalAnalysis,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
-import { createNews, fetchStatusUpdates, deleteNews } from './api'
+import { createNews, fetchStatusUpdates, updateNews, deleteNews } from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
@@ -574,6 +575,7 @@ function renderAdminNewsList(updates: StatusUpdate[]): string {
               <span class="admin-news-badge ${update.importance}">${getImportanceLabel(update.importance)}</span>
             </div>
             <div class="admin-news-actions">
+              <button type="button" class="admin-news-edit" data-news-id="${update.id}">Edytuj</button>
               <button type="button" class="admin-news-delete" data-news-id="${update.id}">Usuń</button>
             </div>
           </li>
@@ -612,10 +614,19 @@ function bindAdminNewsActions(): void {
 }
 
 async function handleAdminNewsClick(event: Event) {
-  const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete')
-  if (!target) {
+  const deleteTarget = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete')
+  if (deleteTarget) {
+    await handleDeleteNews(deleteTarget)
     return
   }
+
+  const editTarget = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-edit')
+  if (editTarget) {
+    await handleEditNews(editTarget)
+  }
+}
+
+async function handleDeleteNews(target: HTMLButtonElement) {
   const newsId = target.dataset.newsId
   if (!newsId) {
     return
@@ -642,6 +653,76 @@ async function handleAdminNewsClick(event: Event) {
   } finally {
     target.disabled = false
     target.textContent = originalText ?? 'Usuń'
+  }
+}
+
+async function handleEditNews(target: HTMLButtonElement) {
+  const newsId = target.dataset.newsId
+  if (!newsId) {
+    return
+  }
+
+  const updates = getStatusUpdates()
+  const existing = updates.find(item => item.id === newsId)
+  if (!existing) {
+    alert('Nie znaleziono aktualności do edycji.')
+    return
+  }
+
+  const newTitle = window.prompt('Tytuł', existing.title)
+  if (newTitle === null) {
+    return
+  }
+
+  const newSummary = window.prompt('Opis', existing.summary)
+  if (newSummary === null) {
+    return
+  }
+
+  const newDate = window.prompt('Data (YYYY-MM-DD)', existing.date)
+  if (newDate === null) {
+    return
+  }
+
+  const importancePrompt = window.prompt(
+    'Ważność (critical / important / informational)',
+    existing.importance,
+  )
+  if (importancePrompt === null) {
+    return
+  }
+  const normalizedImportance = importancePrompt.trim().toLowerCase() as StatusUpdate['importance']
+  if (!['critical', 'important', 'informational'].includes(normalizedImportance)) {
+    alert('Niepoprawny typ ważności. Użyj: critical / important / informational.')
+    return
+  }
+
+  const payload = {
+    title: newTitle.trim(),
+    summary: newSummary.trim(),
+    publishedOn: newDate.trim(),
+    importance: normalizedImportance,
+  }
+
+  try {
+    target.disabled = true
+    target.textContent = 'Zapisywanie...'
+    const updated = await updateNews(newsId, payload)
+    updateStatusUpdate(newsId, {
+      title: updated.title,
+      summary: updated.summary,
+      date: updated.publishedOn.slice(0, 10),
+      importance: updated.importance,
+    })
+    refreshAdminNewsPreview()
+    await syncStatusUpdatesFromApi({ force: true })
+  } catch (error) {
+    console.error('Nie udało się zaktualizować aktualności:', error)
+    const message = error instanceof Error ? error.message : 'Nie udało się zaktualizować aktualności.'
+    alert(message)
+  } finally {
+    target.disabled = false
+    target.textContent = 'Edytuj'
   }
 }
 

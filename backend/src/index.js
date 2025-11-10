@@ -3,7 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const { pool } = require('./lib/db')
 const { ensureNewsTable } = require('./lib/schema')
-const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, deleteNewsItem } = require('./lib/news')
+const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -113,6 +113,46 @@ app.get('/api/news', async (req, res) => {
     console.error('Failed to fetch news:', error)
     res.status(500).json({
       error: 'Failed to fetch news',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.put('/api/news/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing news id' })
+    return
+  }
+
+  const { title, summary, importance, publishedOn } = req.body ?? {}
+
+  if (
+    (typeof title !== 'string' || !title.trim()) &&
+    (typeof summary !== 'string' || !summary.trim()) &&
+    (typeof importance !== 'string' || !importance.trim()) &&
+    (typeof publishedOn !== 'string' || !publishedOn.trim())
+  ) {
+    res.status(400).json({ error: 'Provide at least one field to update' })
+    return
+  }
+
+  try {
+    const updated = await updateNewsItem(id, { title, summary, importance, publishedOn })
+    if (!updated) {
+      res.status(404).json({ error: 'News item not found' })
+      return
+    }
+    res.json({ data: updated })
+  } catch (error) {
+    if (error?.code === 'INVALID_IMPORTANCE') {
+      res.status(400).json({ error: 'Invalid importance value', allowed: IMPORTANCE_VALUES })
+      return
+    }
+
+    console.error('Failed to update news:', error)
+    res.status(500).json({
+      error: 'Failed to update news',
       details: error instanceof Error ? error.message : String(error),
     })
   }

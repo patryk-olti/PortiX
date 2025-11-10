@@ -63,6 +63,63 @@ async function listNewsItems(limit = 20) {
   return result.rows
 }
 
+async function updateNewsItem(id, { title, summary, importance, publishedOn }) {
+  const fields = []
+  const values = []
+
+  if (typeof title === 'string') {
+    fields.push('title = $' + (fields.length + 1))
+    values.push(title.trim())
+  }
+
+  if (typeof summary === 'string') {
+    fields.push('summary = $' + (fields.length + 1))
+    values.push(summary.trim())
+  }
+
+  if (typeof importance === 'string') {
+    const normalizedImportance = importance.trim().toLowerCase()
+    if (!validateImportance(normalizedImportance)) {
+      throw Object.assign(new Error('Invalid importance value'), {
+        code: 'INVALID_IMPORTANCE',
+        allowed: IMPORTANCE_VALUES,
+      })
+    }
+    fields.push('importance = $' + (fields.length + 1))
+    values.push(normalizedImportance)
+  }
+
+  if (typeof publishedOn === 'string' && publishedOn.trim()) {
+    fields.push('published_on = $' + (fields.length + 1) + '::date')
+    values.push(publishedOn.trim())
+  }
+
+  if (!fields.length) {
+    return null
+  }
+
+  values.push(id)
+
+  const result = await pool.query(
+    `
+      update news
+      set ${fields.join(', ')}, updated_at = now()
+      where id = $${values.length}::uuid
+      returning
+        id,
+        title,
+        summary,
+        importance,
+        published_on::text as "publishedOn",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `,
+    values,
+  )
+
+  return result.rows[0] ?? null
+}
+
 async function deleteNewsItem(id) {
   const result = await pool.query(
     `
@@ -80,6 +137,7 @@ module.exports = {
   validateImportance,
   IMPORTANCE_VALUES,
   listNewsItems,
+  updateNewsItem,
   deleteNewsItem,
 }
 

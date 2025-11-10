@@ -52,6 +52,35 @@ npm start
 }
 ```
 
+`PUT /api/news/:id`
+
+Request body (any field optional):
+
+```json
+{
+  "title": "string",
+  "summary": "string",
+  "importance": "critical | important | informational",
+  "publishedOn": "YYYY-MM-DD"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "id": "<uuid>",
+    "title": "...",
+    "summary": "...",
+    "importance": "important",
+    "publishedOn": "2025-11-10",
+    "createdAt": "2025-11-10T11:47:43.027Z",
+    "updatedAt": "2025-11-10T11:47:43.027Z"
+  }
+}
+```
+
 `DELETE /api/news/:id`
 
 Response `200`:

@@ -163,3 +163,41 @@ export async function fetchStatusUpdates(limit?: number): Promise<StatusUpdate[]
   })
 }
 
+export interface UpdateNewsPayload {
+  title?: string
+  summary?: string
+  importance?: StatusUpdate['importance']
+  publishedOn?: string
+}
+
+export async function updateNews(id: string, payload: UpdateNewsPayload): Promise<NewsResponse> {
+  const response = await fetch(resolveEndpoint(`/api/news/${encodeURIComponent(id)}`), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to update news')
+        : 'Failed to update news'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: NewsResponse }).data
+}
+

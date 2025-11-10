@@ -258,83 +258,6 @@ a {
   border-bottom: none;
 }
 
-.home-news {
-  display: grid;
-  gap: 1.5rem;
-  background: var(--surface-strong);
-  border-radius: 24px;
-  padding: 2.5rem;
-  border: 1px solid rgb(148 163 184 / 0.2);
-}
-
-.home-news-list {
-  display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.home-news-card {
-  background: var(--surface);
-  border-radius: 18px;
-  border: 1px solid rgb(148 163 184 / 0.12);
-  padding: 1.5rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.home-news-card header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.home-news-card time {
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.home-news-card h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
-.home-news-card p {
-  margin: 0;
-  color: rgb(226 232 240 / 0.82);
-  line-height: 1.6;
-}
-
-.home-news-badge {
-  padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.home-news-badge.critical {
-  background: rgb(248 113 113 / 0.2);
-  color: #f87171;
-  border: 1px solid rgb(248 113 113 / 0.3);
-}
-
-.home-news-badge.important {
-  background: rgb(96 165 250 / 0.2);
-  color: var(--accent);
-  border: 1px solid rgb(96 165 250 / 0.3);
-}
-
-.home-news-badge.informational {
-  background: rgb(148 163 184 / 0.2);
-  color: var(--muted);
-  border: 1px solid rgb(148 163 184 / 0.3);
-}
-
 .details-link {
   display: inline-flex;
   align-items: center;
@@ -1835,10 +1758,8 @@ button.ghost:hover {
   gap: 0.5rem;
 }
 
+.admin-news-edit,
 .admin-news-delete {
-  background: transparent;
-  border: 1px solid rgb(248 113 113 / 0.4);
-  color: #fca5a5;
   border-radius: 999px;
   padding: 0.35rem 0.9rem;
   font-size: 0.85rem;
@@ -1849,12 +1770,31 @@ button.ghost:hover {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
+.admin-news-edit {
+  background: transparent;
+  border: 1px solid rgb(96 165 250 / 0.4);
+  color: var(--accent);
+}
+
+.admin-news-edit:hover:not(:disabled) {
+  background: rgb(96 165 250 / 0.12);
+  border-color: rgb(96 165 250 / 0.6);
+  color: var(--accent-strong);
+}
+
+.admin-news-delete {
+  background: transparent;
+  border: 1px solid rgb(248 113 113 / 0.4);
+  color: #fca5a5;
+}
+
 .admin-news-delete:hover:not(:disabled) {
   background: rgb(248 113 113 / 0.12);
   border-color: rgb(248 113 113 / 0.6);
   color: #f87171;
 }
 
+.admin-news-edit:disabled,
 .admin-news-delete:disabled {
   opacity: 0.6;
   cursor: not-allowed;

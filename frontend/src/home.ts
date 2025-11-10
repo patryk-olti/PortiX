@@ -1,10 +1,7 @@
-import { getPositions, getStatusUpdates, replaceStatusUpdates } from './store';
-import { fetchStatusUpdates } from './api';
-import type { StatusUpdate } from './types';
+import { getPositions } from './store'
 
 export function renderHome(): string {
   const positions = getPositions()
-  const news = getStatusUpdates().slice(0, 3)
   return `
     <main class="page">
       <section class="hero">
@@ -101,16 +98,6 @@ export function renderHome(): string {
           </table>
         </div>
       </section>
-
-      <section class="home-news">
-        <div class="section-header">
-          <h2>Aktualności</h2>
-          <p>Ostatnie informacje z panelu administracyjnego.</p>
-        </div>
-        <div class="home-news-list" id="home-news-list">
-          ${renderHomeNewsCards(news)}
-        </div>
-      </section>
     </main>
 
     <footer class="footer">
@@ -122,7 +109,7 @@ export function renderHome(): string {
         <a href="#/login">Logowanie</a>
       </nav>
     </footer>
-  `;
+  `
 }
 
 export function setupHomeHandlers(): void {
@@ -144,85 +131,16 @@ export function setupHomeHandlers(): void {
     })
   })
 
-  refreshHomeNews()
-  void hydrateHomeNews()
-}
-
-function renderHomeNewsCards(items: StatusUpdate[]): string {
-  if (!items.length) {
-    return '<p class="empty-state">Brak aktualności.</p>'
-  }
-
-  return items
-    .slice(0, 3)
-    .map(
-      item => `
-        <article class="home-news-card">
-          <header>
-            <time datetime="${item.date}">${formatDate(item.date)}</time>
-            <span class="home-news-badge ${item.importance}">${getImportanceLabel(item.importance)}</span>
-          </header>
-          <h3>${item.title}</h3>
-          <p>${item.summary}</p>
-        </article>
-      `,
-    )
-    .join('')
-}
-
-function refreshHomeNews(): void {
-  const container = document.querySelector<HTMLDivElement>('#home-news-list')
-  if (!container) {
-    return
-  }
-  const updates = getStatusUpdates()
-  container.innerHTML = renderHomeNewsCards(updates)
-}
-
-async function hydrateHomeNews(): Promise<void> {
-  const container = document.querySelector<HTMLDivElement>('#home-news-list')
-  if (!container) {
-    return
-  }
-
-  if (!container.dataset.loading) {
-    container.dataset.loading = 'true'
-    container.innerHTML = '<p class="empty-state">Ładowanie aktualności...</p>'
-  }
-
-  try {
-    const updates = await fetchStatusUpdates(6)
-    replaceStatusUpdates(updates)
-  } catch (error) {
-    console.error('Nie udało się pobrać aktualności:', error)
-    container.innerHTML =
-      '<p class="empty-state">Nie udało się pobrać aktualności. Spróbuj ponownie później.</p>'
-  } finally {
-    delete container.dataset.loading
-    refreshHomeNews()
-  }
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('pl-PL', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const statusLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href="#/status"]'))
+  statusLinks.forEach(link => {
+    link.addEventListener('click', event => {
+      event.preventDefault()
+      window.location.hash = '#/status'
+    })
   })
 }
 
-function getImportanceLabel(importance: StatusUpdate['importance']): string {
-  const labels: Record<StatusUpdate['importance'], string> = {
-    critical: 'Pilne',
-    important: 'Ważne',
-    informational: 'Informacyjne',
-  }
-
-  return labels[importance]
-}
-
 function formatPositionType(positionType: 'long' | 'short'): string {
-  return positionType === 'short' ? 'SHORT' : 'LONG';
+  return positionType === 'short' ? 'SHORT' : 'LONG'
 }
 
