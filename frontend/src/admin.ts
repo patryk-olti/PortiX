@@ -101,9 +101,6 @@ export function renderAdmin(): string {
             )
             .join('')}
         </nav>
-        <div class="admin-sidebar-footer">
-          <button type="button" class="logout-button admin-logout">Wyloguj się</button>
-        </div>
       </aside>
 
       <section class="admin-content">
@@ -301,15 +298,6 @@ export function renderAdmin(): string {
       </div>
     </div>
 
-    <footer class="footer">
-      <small>© ${new Date().getFullYear()} PortiX. Wszystkie prawa zastrzeżone.</small>
-      <nav>
-        <a href="#/status">Status projektu</a>
-        <a href="#">Dokumentacja</a>
-        <a href="#">Kontakt</a>
-        <a href="#/login">Logowanie</a>
-      </nav>
-    </footer>
   `
 }
 

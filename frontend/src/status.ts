@@ -44,7 +44,7 @@ export function renderStatus(): string {
           <p>Skontaktuj się z zespołem PortiX, jeśli zauważysz problem lub masz pytania dotyczące roadmapy.</p>
           <div class="status-help-actions">
             <a class="status-action-button" href="mailto:support@portix.io">Napisz do nas</a>
-            <a class="status-action-button secondary" href="#/">Powrót do strony głównej</a>
+            <button type="button" class="status-action-button secondary" data-target="#/">Powrót do strony głównej</button>
           </div>
         </div>
       </section>
@@ -117,18 +117,36 @@ export function setupStatusHandlers(): void {
     }
   })()
 
-  const statusButtons = Array.from(
+  const actionButtons = Array.from(
     document.querySelectorAll<HTMLAnchorElement>('.status-action-button')
   )
 
-  statusButtons.forEach(button => {
-    if (button.href.startsWith('mailto:')) {
+  actionButtons.forEach(button => {
+    if (button.dataset.external === 'true' || button.href.startsWith('mailto:')) {
       return
     }
 
+    button.addEventListener(
+      'click',
+      event => {
+        event.preventDefault()
+        const target = button.getAttribute('href') || '#/'
+        if (window.location.hash !== target) {
+          window.location.hash = target
+        }
+      },
+      { once: true },
+    )
+  })
+
+  const navButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.status-action-button[data-target]'),
+  )
+
+  navButtons.forEach(button => {
     button.addEventListener('click', event => {
       event.preventDefault()
-      const target = button.getAttribute('href') || '#/'
+      const target = button.dataset.target || '#/'
       window.location.hash = target
     })
   })

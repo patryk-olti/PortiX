@@ -130,14 +130,6 @@ export function setupHomeHandlers(): void {
       row.style.display = row.dataset.category === value ? '' : 'none'
     })
   })
-
-  const statusLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href="#/status"]'))
-  statusLinks.forEach(link => {
-    link.addEventListener('click', event => {
-      event.preventDefault()
-      window.location.hash = '#/status'
-    })
-  })
 }
 
 function formatPositionType(positionType: 'long' | 'short'): string {
