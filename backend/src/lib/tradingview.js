@@ -2,6 +2,13 @@ const fetch = require('node-fetch')
 
 const TRADINGVIEW_SCAN_URL = 'https://scanner.tradingview.com/global/scan'
 const DEFAULT_COLUMNS = ['close', 'currency', 'pricescale', 'name', 'description', 'exchange']
+const REQUEST_HEADERS = {
+  'Content-Type': 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  Referer: 'https://www.tradingview.com/',
+  Origin: 'https://www.tradingview.com',
+}
 
 function normalizeSymbols(input) {
   if (!Array.isArray(input)) {
@@ -49,10 +56,7 @@ async function fetchTradingViewQuotes(symbols, options = {}) {
 
   const response = await fetch(TRADINGVIEW_SCAN_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'PortiX Backend/1.0',
-    },
+    headers: REQUEST_HEADERS,
     body: JSON.stringify({
       symbols: { tickers },
       columns,
