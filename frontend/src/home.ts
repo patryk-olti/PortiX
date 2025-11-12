@@ -35,25 +35,34 @@ function aggregateMonetaryValue(
   }
 
   const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
-  const [first] = normalized
-  const consistentCurrency =
-    first.currency && normalized.every(entry => entry.currency === first.currency) ? first.currency : null
+  const currencies = new Set(
+    normalized.map(entry =>
+      entry.currency != null ? entry.currency : fallbackCurrency != null ? fallbackCurrency : null,
+    ),
+  )
+  const consistent = currencies.size <= 1
+  const [currency] = currencies
 
-  if (consistentCurrency) {
+  if (consistent && currency) {
     const formatter = new Intl.NumberFormat('pl-PL', {
       style: 'currency',
-      currency: consistentCurrency,
+      currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
-    return { value: total, label: formatter.format(total), currency: consistentCurrency, consistent: true }
+    return { value: total, label: formatter.format(total), currency, consistent: true }
   }
 
   const numberFormatter = new Intl.NumberFormat('pl-PL', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  return { value: total, label: numberFormatter.format(total), currency: null, consistent: false }
+  return {
+    value: total,
+    label: numberFormatter.format(total),
+    currency: consistent ? (currency ?? null) : null,
+    consistent,
+  }
 }
 
 function formatActivePositionsLabel(count: number): string {
