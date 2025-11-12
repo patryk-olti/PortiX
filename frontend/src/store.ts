@@ -31,6 +31,10 @@ const DEFAULT_QUOTE_SYMBOLS: Record<string, string> = {
   dax: 'INDEX:DEU40',
   gold: 'TVC:GOLD',
   cash: 'OANDA:USDCAD',
+  wticousd: 'TVC:USOIL',
+  'wticousd(2)': 'TVC:USOIL',
+  btc: 'BINANCE:BTCUSDT',
+  eth: 'BINANCE:ETHUSDT',
 }
 
 const KNOWN_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'PLN', 'CAD', 'CHF', 'JPY'])

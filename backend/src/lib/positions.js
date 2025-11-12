@@ -5,6 +5,18 @@ const { fetchTradingViewQuotes } = require('./tradingview')
 const CATEGORY_SET = new Set(POSITION_CATEGORY_VALUES)
 const POSITION_TYPE_SET = new Set(POSITION_TYPE_VALUES)
 
+const DEFAULT_QUOTE_SYMBOLS = {
+  soxx: 'NASDAQ:SOXX',
+  msft: 'NASDAQ:MSFT',
+  dax: 'INDEX:DEU40',
+  gold: 'TVC:GOLD',
+  cash: 'OANDA:USDCAD',
+  wticousd: 'TVC:USOIL',
+  'wticousd(2)': 'TVC:USOIL',
+  btc: 'BINANCE:BTCUSDT',
+  eth: 'BINANCE:ETHUSDT',
+}
+
 const CATEGORY_LABELS = {
   stock: 'Akcje',
   commodity: 'Surowiec',
@@ -16,12 +28,41 @@ function normalizeSymbol(value) {
   return value.trim().toUpperCase()
 }
 
-function normalizeQuoteSymbol(value, fallbackSymbol) {
+function normalizeQuoteInput(value) {
   if (typeof value !== 'string') {
-    return fallbackSymbol
+    return undefined
   }
   const trimmed = value.trim().toUpperCase()
-  return trimmed.length > 0 ? trimmed : fallbackSymbol
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function getDefaultQuoteSymbol(symbol, category) {
+  const lower = symbol.toLowerCase()
+  if (DEFAULT_QUOTE_SYMBOLS[lower]) {
+    return DEFAULT_QUOTE_SYMBOLS[lower]
+  }
+
+  if (symbol.includes(':')) {
+    return symbol.toUpperCase()
+  }
+
+  const upper = symbol.toUpperCase()
+  switch (category) {
+    case 'commodity':
+      return `TVC:${upper}`
+    case 'hedge':
+      return `INDEX:${upper}`
+    case 'cash':
+      return `FX:${upper}`
+    case 'stock':
+      return `NASDAQ:${upper}`
+    default:
+      return upper
+  }
+}
+
+function resolveQuoteSymbol(symbol, category, incoming) {
+  return normalizeQuoteInput(incoming) ?? getDefaultQuoteSymbol(symbol, category)
 }
 
 function normalizeName(value, fallbackSymbol) {
@@ -119,7 +160,7 @@ function mapRowToPosition(row) {
   return {
     id: row.slug ?? row.id,
     symbol: row.symbol,
-    quoteSymbol: row.quote_symbol ?? row.symbol,
+    quoteSymbol: resolveQuoteSymbol(row.symbol, row.category, row.quote_symbol),
     name: row.name,
     category,
     categoryName: CATEGORY_LABELS[category] ?? category,
@@ -173,7 +214,7 @@ async function createPosition(payload) {
   const symbol = normalizeSymbol(symbolInput)
   const name = normalizeName(nameInput, symbol)
   const slug = symbol.toLowerCase()
-  const quoteSymbol = normalizeQuoteSymbol(payload.quoteSymbol, symbol)
+  const quoteSymbol = resolveQuoteSymbol(symbol, categoryInput, payload.quoteSymbol)
 
   const client = await pool.connect()
 
