@@ -724,9 +724,11 @@ function setupCreatePositionForm() {
       })
 
       applyPositionUpdate(createdPosition)
-      await refreshPositionsFromBackend()
+      const positions = await refreshPositionsFromBackend()
+      const refreshed = positions.find(item => item.id === createdPosition.id)
 
-      const displayQuote = createdPosition.quoteSymbol ? ` (symbol kursu: ${createdPosition.quoteSymbol})` : ''
+      const latestQuoteSymbol = refreshed?.quoteSymbol ?? createdPosition.quoteSymbol
+      const displayQuote = latestQuoteSymbol ? ` (symbol kursu: ${latestQuoteSymbol})` : ''
       alert(`Dodano nową pozycję ${symbol}.${displayQuote}`)
       form.reset()
       if (sizeTypeSelect) {
