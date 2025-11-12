@@ -473,11 +473,17 @@ function setupAnalysisSection() {
 }
 
 function bindAnalysisForm(form: HTMLFormElement) {
+  const positionId = form.dataset.positionId ?? ''
+  const initialAnalysis =
+    positionId ? getTechnicalAnalysis(positionId) || createEmptyAnalysis() : createEmptyAnalysis()
+
+  setupClosureControls(form, initialAnalysis)
+
   form.addEventListener('submit', async event => {
     event.preventDefault()
     const formData = new FormData(form)
-    const positionId = form.dataset.positionId
-    if (!positionId) {
+    const currentPositionId = form.dataset.positionId ?? positionId
+    if (!currentPositionId) {
       return
     }
 
@@ -489,6 +495,9 @@ function bindAnalysisForm(form: HTMLFormElement) {
     const summary = (formData.get('summary') as string)?.trim()
     const completed = formData.get('completed') === 'on'
     const completionNote = (formData.get('completionNote') as string)?.trim()
+    const positionClosed = (formData.get('positionClosed') as string) === 'true'
+    const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
+    const positionClosedDateInput = (formData.get('positionClosedDate') as string)?.trim() ?? ''
     const currentImageValue = (formData.get('currentImage') as string) || undefined
     const analysisImageFile = formData.get('analysisImage') as File | null
     const tradingViewUrl = (formData.get('tradingViewUrl') as string)?.trim()
@@ -509,6 +518,11 @@ function bindAnalysisForm(form: HTMLFormElement) {
       return
     }
 
+    if (positionClosed && !positionClosedNote) {
+      alert('Dodaj informację dlaczego pozycja została zamknięta.')
+      return
+    }
+
     let analysisImage = currentImageValue
     if (analysisImageFile && analysisImageFile.size > 0) {
       try {
@@ -520,7 +534,10 @@ function bindAnalysisForm(form: HTMLFormElement) {
       }
     }
 
-    const existingAnalysis = getTechnicalAnalysis(positionId) || createEmptyAnalysis()
+    const existingAnalysis = getTechnicalAnalysis(currentPositionId) || createEmptyAnalysis()
+    const resolvedClosedDate = positionClosed
+      ? positionClosedDateInput || existingAnalysis.positionClosedDate || new Date().toISOString()
+      : undefined
 
     const analysis: TechnicalAnalysis = {
       trend,
@@ -540,13 +557,110 @@ function bindAnalysisForm(form: HTMLFormElement) {
           : new Date().toISOString()
         : undefined,
       tradingViewUrl: normalizedTradingViewUrl,
+      positionClosed,
+      positionClosedNote: positionClosed ? positionClosedNote : undefined,
+      positionClosedDate: resolvedClosedDate,
     }
 
-    upsertTechnicalAnalysis(positionId, analysis)
+    upsertTechnicalAnalysis(currentPositionId, analysis)
     alert('Analiza została zaktualizowana.')
   })
 
   bindAnalysisPreview(form)
+}
+
+function setupClosureControls(form: HTMLFormElement, analysis: TechnicalAnalysis) {
+  const closureSection = form.querySelector<HTMLDivElement>('.analysis-closure')
+  if (!closureSection) {
+    return
+  }
+
+  const closeButton = closureSection.querySelector<HTMLButtonElement>('.close-analysis-button')
+  const reopenButton = closureSection.querySelector<HTMLButtonElement>('.reopen-closure-button')
+  const hiddenStatus = closureSection.querySelector<HTMLInputElement>('input[name="positionClosed"]')
+  const hiddenDate = closureSection.querySelector<HTMLInputElement>('input[name="positionClosedDate"]')
+  const noteField = closureSection.querySelector<HTMLTextAreaElement>('textarea[name="positionClosedNote"]')
+  const info = closureSection.querySelector<HTMLParagraphElement>('.closure-info')
+
+  const applyState = (closed: boolean, options: { note?: string; date?: string } = {}) => {
+    if (hiddenStatus) {
+      hiddenStatus.value = closed ? 'true' : 'false'
+    }
+
+    closureSection.dataset.closed = closed ? 'true' : 'false'
+
+    if (noteField) {
+      if (closed) {
+        if (options.note !== undefined) {
+          noteField.value = options.note
+        }
+        noteField.disabled = false
+        noteField.required = true
+      } else {
+        if (options.note !== undefined) {
+          noteField.value = ''
+        }
+        noteField.disabled = true
+        noteField.required = false
+      }
+    }
+
+    if (hiddenDate) {
+      if (closed) {
+        if (options.date !== undefined) {
+          hiddenDate.value = options.date
+        } else if (!hiddenDate.value) {
+          hiddenDate.value = options.date ?? ''
+        }
+      } else {
+        hiddenDate.value = ''
+      }
+    }
+
+    if (closeButton) {
+      closeButton.hidden = closed
+    }
+    if (reopenButton) {
+      reopenButton.hidden = !closed
+    }
+
+    if (info) {
+      if (closed) {
+        const displayDate = hiddenDate?.value || options.date
+        info.textContent = displayDate ? `Zamknięto: ${formatDate(displayDate)}` : 'Pozycja zamknięta'
+      } else {
+        info.textContent = ''
+      }
+    }
+
+    if (closed && noteField && options.note !== undefined) {
+      noteField.focus()
+      const length = noteField.value.length
+      noteField.setSelectionRange(length, length)
+    }
+  }
+
+  applyState(Boolean(analysis.positionClosed), {
+    note: analysis.positionClosed ? analysis.positionClosedNote ?? '' : '',
+    date: analysis.positionClosed ? analysis.positionClosedDate ?? '' : '',
+  })
+
+  closeButton?.addEventListener('click', () => {
+    const existingNote = noteField?.value.trim() ?? ''
+    const note = window.prompt('Podaj krótką informację o zamknięciu pozycji.', existingNote)
+    if (!note || !note.trim()) {
+      alert('Dodaj przynajmniej krótką informację o zamknięciu pozycji.')
+      return
+    }
+    applyState(true, { note: note.trim(), date: new Date().toISOString() })
+  })
+
+  reopenButton?.addEventListener('click', () => {
+    if (!window.confirm('Oznaczyć pozycję jako aktywną?')) {
+      return
+    }
+    applyState(false, { note: '', date: '' })
+  })
 }
 
 function setupStatusForm() {
@@ -770,6 +884,9 @@ function renderAnalysisForm(positionId: string): string {
   }
 
   const targets = analysis.targets ?? {}
+  const isClosed = analysis.positionClosed ?? false
+  const closedNote = analysis.positionClosedNote ?? ''
+  const closedDate = analysis.positionClosedDate ?? ''
 
   return `
     <form class="admin-form analysis-edit-form" data-position-id="${positionId}">
@@ -843,6 +960,29 @@ function renderAnalysisForm(positionId: string): string {
             : ''
         }
       </div>
+      <div class="analysis-closure" data-closed="${isClosed ? 'true' : 'false'}">
+        <input type="hidden" name="positionClosed" value="${isClosed ? 'true' : 'false'}" />
+        <input type="hidden" name="positionClosedDate" value="${closedDate}" />
+        <label class="form-field closure-note">
+          <span>Informacja o zamknięciu</span>
+          <textarea
+            name="positionClosedNote"
+            rows="3"
+            ${isClosed ? '' : 'disabled'}
+            placeholder="Dlaczego pozycja została zamknięta?">${closedNote}</textarea>
+        </label>
+        <div class="analysis-closure-actions">
+          <button type="button" class="secondary close-analysis-button" ${isClosed ? 'hidden' : ''}>
+            Zamknij pozycję
+          </button>
+          <button type="button" class="ghost reopen-closure-button" ${isClosed ? '' : 'hidden'}>
+            Oznacz jako aktywną
+          </button>
+          <p class="analysis-info closure-info">
+            ${isClosed && closedDate ? `Zamknięto: ${formatDate(closedDate)}` : ''}
+          </p>
+        </div>
+      </div>
       <div class="admin-form-actions has-secondary">
         <button type="button" class="ghost preview-analysis-button">Podgląd widoku</button>
         <button type="submit" class="secondary">Zapisz zmiany</button>
@@ -858,6 +998,7 @@ function createEmptyAnalysis(): TechnicalAnalysis {
     stopLoss: '',
     summary: '',
     tradingViewUrl: '',
+    positionClosed: false,
   }
 }
 
@@ -934,6 +1075,9 @@ async function openAnalysisPreview(form: HTMLFormElement) {
   const tp3 = (formData.get('tp3') as string)?.trim()
   const tradingViewValue = (formData.get('tradingViewUrl') as string)?.trim()
   const normalizedTradingViewUrl = normalizeTradingViewUrl(tradingViewValue)
+  const positionClosed = (formData.get('positionClosed') as string) === 'true'
+  const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
+  const positionClosedDateRaw = (formData.get('positionClosedDate') as string)?.trim() ?? ''
 
   let analysisImage = (formData.get('currentImage') as string) || undefined
   const analysisImageFile = formData.get('analysisImage') as File | null
@@ -959,6 +1103,11 @@ async function openAnalysisPreview(form: HTMLFormElement) {
     completed: formData.get('completed') === 'on',
     completionNote: (formData.get('completionNote') as string)?.trim() || undefined,
     completionDate: undefined,
+    positionClosed,
+    positionClosedNote: positionClosed ? positionClosedNote || undefined : undefined,
+    positionClosedDate: positionClosed
+      ? positionClosedDateRaw || new Date().toISOString()
+      : undefined,
   }
 
   const warning = tradingViewValue && !normalizedTradingViewUrl
@@ -987,6 +1136,9 @@ function buildAnalysisPreviewHtml(
   const trendClass = analysis.trend === 'bullish' ? 'positive' : analysis.trend === 'bearish' ? 'negative' : 'neutral'
   const trendLabel = getTrendLabel(analysis.trend ?? 'neutral')
   const typeLabel = position.positionType === 'short' ? 'SHORT' : 'LONG'
+  const isClosed = analysis.positionClosed ?? false
+  const closedDateLabel =
+    isClosed && analysis.positionClosedDate ? formatDate(analysis.positionClosedDate) : undefined
 
   return `
     <div class="analysis-preview-modal">
@@ -999,6 +1151,13 @@ function buildAnalysisPreviewHtml(
             <span class="preview-type ${position.positionType}">${typeLabel}</span>
             <span class="preview-category">${position.categoryName}</span>
           </div>
+          ${
+            isClosed
+              ? `<span class="preview-status closed">
+                  Pozycja zamknięta${closedDateLabel ? ` • ${closedDateLabel}` : ''}
+                </span>`
+              : ''
+          }
         </div>
       </header>
       <div class="analysis-preview-body">
@@ -1028,6 +1187,15 @@ function buildAnalysisPreviewHtml(
             ${
               analysis.completed && analysis.completionNote
                 ? `<p class="preview-completion">Zrealizowano: ${analysis.completionNote}</p>`
+                : ''
+            }
+            ${
+              isClosed
+                ? `<p class="preview-closure">${
+                    analysis.positionClosedNote
+                      ? `Zamknięcie: ${analysis.positionClosedNote}`
+                      : 'Pozycja została zamknięta.'
+                  }</p>`
                 : ''
             }
           </div>

@@ -75,6 +75,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     summary:
       'SOXX pozostaje w silnym trendzie wzrostowym dzięki popytowi na półprzewodniki. Scenariusz bazowy zakłada kontynuację wzrostu po krótkiej konsolidacji.',
     tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=NASDAQ%3ASOXX',
+    positionClosed: false,
   },
   msft: {
     trend: 'bullish',
@@ -87,6 +88,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     summary:
       'Microsoft korzysta na rosnącej adopcji usług chmurowych i AI. Utrzymanie powyżej ostatniego wsparcia wspiera scenariusz dalszego wzrostu.',
     tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=NASDAQ%3AMSFT',
+    positionClosed: false,
   },
   dax: {
     trend: 'bearish',
@@ -99,6 +101,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     summary:
       'Kontrakt na DAX służy jako zabezpieczenie portfela. Scenariusz zakłada dalszą korektę w kierunku niższych poziomów wsparcia.',
     tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=DEU%3ADAX',
+    positionClosed: false,
   },
   gold: {
     trend: 'bullish',
@@ -111,6 +114,7 @@ export const initialTechnicalAnalysis: Record<string, TechnicalAnalysis> = {
     summary:
       'Złoto wspierane jest przez oczekiwania związane z polityką monetarną i popyt na aktywa defensywne. Kluczowe wsparcie w okolicach 2000 USD pozostaje nienaruszone.',
     tradingViewUrl: 'https://www.tradingview.com/chart/?symbol=TVC%3AGOLD',
+    positionClosed: false,
   },
 };
 

@@ -106,6 +106,7 @@ function createEmptyAnalysisRecord(): TechnicalAnalysis {
     targets: {},
     stopLoss: '',
     summary: '',
+    positionClosed: false,
   }
 }
 
@@ -114,6 +115,10 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
   Object.entries(source).forEach(([key, value]) => {
     if (value && typeof value === 'object') {
       if ('targets' in value || 'stopLoss' in value || 'analysisImage' in value) {
+        const closed =
+          value.positionClosed === true ||
+          value.positionClosed === 'true' ||
+          value.positionClosed === 1
         migrated[key] = {
           trend: value.trend ?? 'neutral',
           targets: {
@@ -128,8 +133,15 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,
+          positionClosed: closed,
+          positionClosedNote: closed ? value.positionClosedNote ?? '' : undefined,
+          positionClosedDate: closed ? value.positionClosedDate : undefined,
         }
       } else {
+        const closed =
+          value.positionClosed === true ||
+          value.positionClosed === 'true' ||
+          value.positionClosed === 1
         migrated[key] = {
           trend: value.trend ?? 'neutral',
           targets: {
@@ -143,6 +155,9 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,
+          positionClosed: closed,
+          positionClosedNote: closed ? value.positionClosedNote ?? '' : undefined,
+          positionClosedDate: closed ? value.positionClosedDate : undefined,
         }
       }
     } else {

@@ -25,6 +25,9 @@ export interface TechnicalAnalysis {
   completed?: boolean;
   completionNote?: string;
   completionDate?: string;
+  positionClosed?: boolean;
+  positionClosedNote?: string;
+  positionClosedDate?: string;
 }
 
 export interface Modification {

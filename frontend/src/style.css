@@ -1435,6 +1435,58 @@ button.ghost:hover {
   border: 1px solid rgb(96 165 250 / 0.25);
 }
 
+.analysis-closure {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 16px;
+  border: 1px solid rgb(251 191 36 / 0.35);
+  background: rgb(251 191 36 / 0.08);
+}
+
+.analysis-closure[data-closed='false'] {
+  border-color: rgb(148 163 184 / 0.25);
+  background: rgb(15 23 42 / 0.45);
+}
+
+.analysis-closure .closure-note textarea {
+  min-height: 120px;
+  transition: opacity 150ms ease;
+}
+
+.analysis-closure .closure-note textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.analysis-closure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.analysis-closure .closure-info {
+  margin: 0 0 0 auto;
+  font-size: 0.9rem;
+  color: rgb(250 204 21 / 0.8);
+}
+
+.analysis-closure .closure-info:empty {
+  display: none;
+}
+
+.analysis-closure .close-analysis-button.secondary {
+  border-color: rgb(248 113 113 / 0.4);
+  color: #fca5a5;
+}
+
+.analysis-closure .close-analysis-button.secondary:hover {
+  background: rgb(248 113 113 / 0.12);
+  border-color: rgb(248 113 113 / 0.55);
+}
+
 .analysis-completion .checkbox {
   display: inline-flex;
   align-items: center;
@@ -1488,6 +1540,25 @@ button.ghost:hover {
   padding: 2.5rem;
   display: grid;
   gap: 1.75rem;
+}
+
+.preview-status.closed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(248 113 113 / 0.16);
+  color: #fca5a5;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.preview-closure {
+  margin: 0.75rem 0 0;
+  font-weight: 500;
+  color: rgb(248 250 252 / 0.9);
 }
 
 .close-preview {
