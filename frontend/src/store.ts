@@ -18,7 +18,7 @@ interface AdminState {
 const STORAGE_KEY = 'portix-admin-state-v1'
 
 const defaultState: AdminState = {
-  positions: clone(initialPositions),
+  positions: Array.isArray(initialPositions) && initialPositions.length ? clone(initialPositions) : [],
   technicalAnalysis: clone(initialTechnicalAnalysis),
   modifications: clone(initialModifications),
   insights: clone(initialInsights),
