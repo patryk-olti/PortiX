@@ -35,6 +35,8 @@ const DEFAULT_QUOTE_SYMBOLS: Record<string, string> = {
   'wticousd(2)': 'TVC:USOIL',
   btc: 'BINANCE:BTCUSDT',
   eth: 'BINANCE:ETHUSDT',
+  btcusdt: 'BINANCE:BTCUSDT',
+  ethusdt: 'BINANCE:ETHUSDT',
 }
 
 const KNOWN_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'PLN', 'CAD', 'CHF', 'JPY'])
@@ -151,6 +153,11 @@ function resolveQuoteSymbol(position: Position, incoming?: unknown): string | un
       return `INDEX:${upper}`
     case 'cash':
       return `FX:${upper}`
+    case 'cryptocurrency':
+      if (upper.endsWith('USDT')) {
+        return `BINANCE:${upper}`
+      }
+      return `BINANCE:${upper}USDT`
     default:
       return undefined
   }
@@ -182,6 +189,15 @@ function migratePositions(source: Position[]): Position[] {
       quoteSymbol?: unknown
       currentPriceValue?: unknown
       currentPriceCurrency?: unknown
+      positionSizeType?: unknown
+      positionSizeValue?: unknown
+      positionSizeLabel?: unknown
+      positionSizePerPipValue?: unknown
+      positionSizePerPipLabel?: unknown
+      positionTotalValue?: unknown
+      positionTotalValueCurrency?: unknown
+      positionTotalValueLabel?: unknown
+      positionCurrency?: unknown
     }
 
     const quoteSymbol = resolveQuoteSymbol(position, incoming.quoteSymbol)
@@ -194,10 +210,72 @@ function migratePositions(source: Position[]): Position[] {
     const currency =
       normalizeCurrency(incoming.currentPriceCurrency) ?? inferCurrencyFromLabel(position.currentPrice)
 
+    const positionSizeType =
+      typeof incoming.positionSizeType === 'string'
+        ? (incoming.positionSizeType as Position['positionSizeType'])
+        : (position.positionSizeType ?? null)
+
+    const positionSizeValue =
+      typeof incoming.positionSizeValue === 'number' && Number.isFinite(incoming.positionSizeValue)
+        ? incoming.positionSizeValue
+        : position.positionSizeValue ?? null
+
+    const positionSizeLabel =
+      typeof incoming.positionSizeLabel === 'string'
+        ? incoming.positionSizeLabel
+        : position.positionSizeLabel ?? null
+
+    const positionSizePerPipValue =
+      typeof incoming.positionSizePerPipValue === 'number' && Number.isFinite(incoming.positionSizePerPipValue)
+        ? incoming.positionSizePerPipValue
+        : position.positionSizePerPipValue ?? null
+
+    const positionSizePerPipLabel =
+      typeof incoming.positionSizePerPipLabel === 'string'
+        ? incoming.positionSizePerPipLabel
+        : position.positionSizePerPipLabel ?? null
+
+    const positionTotalValue =
+      typeof incoming.positionTotalValue === 'number' && Number.isFinite(incoming.positionTotalValue)
+        ? incoming.positionTotalValue
+        : position.positionTotalValue ?? null
+
+    const positionTotalValueCurrency =
+      typeof incoming.positionTotalValueCurrency === 'string'
+        ? incoming.positionTotalValueCurrency
+        : position.positionTotalValueCurrency ?? null
+
+    const positionTotalValueLabel =
+      typeof incoming.positionTotalValueLabel === 'string'
+        ? incoming.positionTotalValueLabel
+        : position.positionTotalValueLabel ?? null
+
+    const positionCurrency =
+      typeof (incoming as { positionCurrency?: unknown }).positionCurrency === 'string'
+        ? ((incoming as { positionCurrency: string }).positionCurrency as string)
+        : typeof (position as { positionCurrency?: unknown }).positionCurrency === 'string'
+          ? ((position as { positionCurrency: string }).positionCurrency as string)
+          : undefined
+
     return {
       ...position,
+      databaseId:
+        typeof (incoming as { databaseId?: unknown }).databaseId === 'string'
+          ? (incoming as { databaseId: string }).databaseId
+          : typeof (position as { databaseId?: unknown }).databaseId === 'string'
+            ? (position as { databaseId: string }).databaseId
+            : undefined,
       positionType: position.positionType ?? 'long',
       quoteSymbol,
+      positionSizeType,
+      positionSizeValue,
+      positionSizeLabel,
+      positionSizePerPipValue,
+      positionSizePerPipLabel,
+      positionTotalValue,
+      positionTotalValueCurrency,
+      positionTotalValueLabel,
+      positionCurrency,
       currentPriceValue: typeof numericValue === 'number' ? numericValue : undefined,
       currentPriceCurrency: currency,
       currentPrice:
@@ -213,6 +291,7 @@ function createEmptyAnalysisRecord(): TechnicalAnalysis {
     stopLoss: '',
     summary: '',
     positionClosed: false,
+    entryStrategy: 'level',
   }
 }
 
@@ -241,6 +320,12 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           positionClosed: closed,
           positionClosedNote: closed ? value.positionClosedNote ?? '' : undefined,
           positionClosedDate: closed ? value.positionClosedDate : undefined,
+          entryStrategy:
+            value.entryStrategy === 'level' ||
+            value.entryStrategy === 'candlePattern' ||
+            value.entryStrategy === 'formationRetest'
+              ? value.entryStrategy
+              : 'level',
         }
       } else {
         const closed =
@@ -262,6 +347,12 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           positionClosed: closed,
           positionClosedNote: closed ? value.positionClosedNote ?? '' : undefined,
           positionClosedDate: closed ? value.positionClosedDate : undefined,
+          entryStrategy:
+            value.entryStrategy === 'level' ||
+            value.entryStrategy === 'candlePattern' ||
+            value.entryStrategy === 'formationRetest'
+              ? value.entryStrategy
+              : 'level',
         }
       }
     } else {
@@ -269,6 +360,11 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
     }
   })
   return migrated
+}
+
+function normalizeTechnicalAnalysisValue(value: TechnicalAnalysis | any): TechnicalAnalysis {
+  const migrated = migrateTechnicalAnalyses({ temp: value })
+  return migrated.temp ?? createEmptyAnalysisRecord()
 }
 
 function sanitizeImportance(value: StatusUpdate['importance']): StatusUpdate['importance'] {
@@ -409,18 +505,52 @@ function formatPriceLabel(value: number, currency?: string | null): string {
 export function replacePositions(positions: Position[]) {
   updateState(current => {
     const next = clone(current)
-    next.positions = migratePositions(clone(positions))
+    const incomingPositions = clone(positions)
+    next.positions = migratePositions(clone(incomingPositions))
 
-    next.positions.forEach(position => {
-      if (!next.technicalAnalysis[position.id]) {
-        next.technicalAnalysis[position.id] =
-          defaultState.technicalAnalysis[position.id] ?? createEmptyAnalysisRecord()
+    const positionIndex = new Map(next.positions.map(position => [position.id, position]))
+
+    const incomingIds = new Set<string>()
+
+    incomingPositions.forEach(position => {
+      incomingIds.add(position.id)
+      const analysisCandidate = (position as Position & { analysis?: TechnicalAnalysis | null }).analysis
+      const target = positionIndex.get(position.id)
+
+      if (analysisCandidate) {
+        const normalized = normalizeTechnicalAnalysisValue(analysisCandidate)
+        next.technicalAnalysis[position.id] = normalized
+        if (target) {
+          target.analysis = normalized
+        }
+      } else {
+        next.technicalAnalysis[position.id] = createEmptyAnalysisRecord()
+        if (target && 'analysis' in target) {
+          delete target.analysis
+        }
       }
+
       if (!next.modifications[position.id]) {
         next.modifications[position.id] = []
       }
       if (!next.insights[position.id]) {
         next.insights[position.id] = []
+      }
+    })
+
+    Object.keys(next.technicalAnalysis).forEach(id => {
+      if (!incomingIds.has(id)) {
+        delete next.technicalAnalysis[id]
+      }
+    })
+    Object.keys(next.modifications).forEach(id => {
+      if (!incomingIds.has(id)) {
+        delete next.modifications[id]
+      }
+    })
+    Object.keys(next.insights).forEach(id => {
+      if (!incomingIds.has(id)) {
+        delete next.insights[id]
       }
     })
 
@@ -449,17 +579,21 @@ export function addPosition(payload: NewPositionPayload) {
     next.positions = next.positions.filter(position => position.id !== payload.position.id)
     const currency = inferCurrencyFromLabel(payload.position.currentPrice)
     const currentPriceValue = parseNumericValue(payload.position.currentPrice)
+    const analysis = normalizeTechnicalAnalysisValue(payload.analysis)
     next.positions.push({
       ...payload.position,
+      databaseId: payload.position.databaseId,
       quoteSymbol: resolveQuoteSymbol(payload.position, payload.position.quoteSymbol),
+      positionCurrency: payload.position.positionCurrency,
       currentPriceCurrency: currency,
       currentPriceValue: typeof currentPriceValue === 'number' ? currentPriceValue : undefined,
       currentPrice:
         typeof currentPriceValue === 'number'
           ? formatPriceLabel(currentPriceValue, currency)
           : payload.position.currentPrice,
+      analysis,
     })
-    next.technicalAnalysis[payload.position.id] = payload.analysis
+    next.technicalAnalysis[payload.position.id] = analysis
 
     if (payload.modifications?.length) {
       next.modifications[payload.position.id] = payload.modifications
@@ -480,7 +614,12 @@ export function addPosition(payload: NewPositionPayload) {
 export function upsertTechnicalAnalysis(positionId: string, analysis: TechnicalAnalysis) {
   updateState(current => {
     const next = clone(current)
-    next.technicalAnalysis[positionId] = analysis
+    const normalized = normalizeTechnicalAnalysisValue(analysis)
+    next.technicalAnalysis[positionId] = normalized
+    const position = next.positions.find(item => item.id === positionId)
+    if (position) {
+      position.analysis = normalized
+    }
     return next
   })
 }
@@ -593,6 +732,106 @@ export function removeModification(positionId: string, modificationId: string) {
     const next = clone(current)
     const existing = next.modifications[positionId] ?? []
     next.modifications[positionId] = existing.filter(item => item.id !== modificationId)
+    return next
+  })
+}
+
+export function removeTechnicalAnalysis(positionId: string) {
+  updateState(current => {
+    const next = clone(current)
+    next.technicalAnalysis[positionId] = createEmptyAnalysisRecord()
+
+    const position = next.positions.find(item => item.id === positionId)
+    if (position && 'analysis' in position) {
+      delete position.analysis
+    }
+
+    if (next.modifications[positionId]) {
+      next.modifications[positionId] = []
+    }
+
+    if (next.insights[positionId]) {
+      next.insights[positionId] = []
+    }
+
+    return next
+  })
+}
+
+export function applyPositionUpdate(position: Position) {
+  updateState(current => {
+    const next = clone(current)
+    const [normalized] = migratePositions([clone(position)])
+    const analysisCandidate = (position as Position & { analysis?: TechnicalAnalysis | null }).analysis
+    const existingIndex = next.positions.findIndex(item => item.id === normalized.id)
+    const normalizedAnalysis = analysisCandidate
+      ? normalizeTechnicalAnalysisValue(analysisCandidate)
+      : undefined
+
+    const preparedPosition: Position = {
+      ...normalized,
+      ...(normalizedAnalysis ? { analysis: normalizedAnalysis } : {}),
+    }
+
+    if (existingIndex >= 0) {
+      const existing = next.positions[existingIndex]
+      next.positions[existingIndex] = {
+        ...existing,
+        ...preparedPosition,
+        databaseId: preparedPosition.databaseId ?? existing.databaseId,
+      }
+    } else {
+      next.positions.push(preparedPosition)
+    }
+
+    if (normalizedAnalysis) {
+      next.technicalAnalysis[normalized.id] = normalizedAnalysis
+      const target = next.positions.find(item => item.id === normalized.id)
+      if (target) {
+        target.analysis = normalizedAnalysis
+        if (!target.positionCurrency && position.positionCurrency) {
+          target.positionCurrency = position.positionCurrency
+        }
+      }
+    } else {
+      const empty = createEmptyAnalysisRecord()
+      next.technicalAnalysis[normalized.id] = empty
+      const target = next.positions.find(item => item.id === normalized.id)
+      if (target && 'analysis' in target) {
+        delete target.analysis
+        if (!target.positionCurrency && position.positionCurrency) {
+          target.positionCurrency = position.positionCurrency
+        }
+      }
+    }
+
+    if (!next.modifications[normalized.id]) {
+      next.modifications[normalized.id] = []
+    }
+
+    if (!next.insights[normalized.id]) {
+      next.insights[normalized.id] = []
+    }
+
+    return next
+  })
+}
+
+export function removePositionFromStore(identifier: string) {
+  updateState(current => {
+    const next = clone(current)
+    const matches = (position: Position) =>
+      position.id === identifier || (position.databaseId && position.databaseId === identifier)
+
+    const removed = next.positions.find(matches)
+    next.positions = next.positions.filter(position => !matches(position))
+
+    const slug = removed ? removed.id : identifier
+
+    delete next.technicalAnalysis[slug]
+    delete next.modifications[slug]
+    delete next.insights[slug]
+
     return next
   })
 }

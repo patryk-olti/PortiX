@@ -3,15 +3,26 @@ export interface Position {
   symbol: string;
   quoteSymbol?: string;
   name: string;
-  category: 'stock' | 'commodity' | 'hedge' | 'cash';
+  category: 'stock' | 'commodity' | 'hedge' | 'cash' | 'cryptocurrency';
   categoryName: string;
   purchasePrice: string;
+  positionSizeType?: 'capital' | 'units' | 'pips' | null;
+  positionSizeValue?: number | null;
+  positionSizeLabel?: string | null;
+  positionSizePerPipValue?: number | null;
+  positionSizePerPipLabel?: string | null;
+  positionTotalValue?: number | null;
+  positionTotalValueCurrency?: string | null;
+  positionTotalValueLabel?: string | null;
+  positionCurrency?: string | null;
   currentPrice: string;
   currentPriceValue?: number;
   currentPriceCurrency?: string;
   return: string;
   returnValue: number;
   positionType: 'long' | 'short';
+  analysis?: TechnicalAnalysis | null;
+  databaseId?: string;
 }
 
 export interface TechnicalAnalysis {
@@ -30,6 +41,7 @@ export interface TechnicalAnalysis {
   positionClosed?: boolean;
   positionClosedNote?: string;
   positionClosedDate?: string;
+  entryStrategy?: 'level' | 'candlePattern' | 'formationRetest';
 }
 
 export interface Modification {

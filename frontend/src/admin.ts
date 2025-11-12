@@ -1,6 +1,4 @@
 import {
-  addPosition,
-  addStatusUpdate,
   getPositions,
   getStatusUpdates,
   getTechnicalAnalysis,
@@ -8,15 +6,31 @@ import {
   replaceStatusUpdates,
   updateStatusUpdate,
   upsertTechnicalAnalysis,
+  removeTechnicalAnalysis,
+  applyPositionUpdate,
+  replacePositions,
+  removePositionFromStore,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
-import { createNews, fetchStatusUpdates, updateNews, deleteNews, createPosition as createPortfolioPosition } from './api'
+import {
+  createNews,
+  fetchStatusUpdates,
+  updateNews,
+  deleteNews,
+  createPosition as createPortfolioPosition,
+  updatePositionAnalysis as persistPositionAnalysis,
+  deletePositionAnalysis as removePositionAnalysis,
+  fetchPositions as fetchPositionsFromApi,
+  deletePosition as deletePortfolioPosition,
+  updatePositionMetadata,
+} from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
   { value: 'commodity', label: 'Surowiec' },
   { value: 'hedge', label: 'Zabezpieczenie' },
   { value: 'cash', label: 'Gotówka' },
+  { value: 'cryptocurrency', label: 'Kryptowaluty' },
 ] as const
 
 const positionTypeOptions = [
@@ -39,10 +53,15 @@ type PositionTypeOption = (typeof positionTypeOptions)[number]['value']
 type SectionId = (typeof sidebarSections)[number]['id']
 
 const ACTIVE_SECTION_STORAGE_KEY = 'adminActiveSection'
+const ACTIVE_ANALYSIS_STORAGE_KEY = 'adminActiveAnalysisPosition'
 let hasInitialNewsSync = false
 let isSyncingNews = false
 let adminNewsHandlerAttached = false
 let adminNewsActionsTarget: HTMLDivElement | null = null
+
+let analysisPositionSelect: HTMLSelectElement | null = null
+let analysisFormContainer: HTMLDivElement | null = null
+let isRefreshingPositions = false
 
 let modalElement: HTMLDivElement | null = null
 let modalForm: HTMLFormElement | null = null
@@ -71,8 +90,12 @@ export function renderAdmin(): string {
 
   const positions = getPositions()
   const statusUpdates = getStatusUpdates()
-  const initialAnalysisPositionId = positions[0]?.id ?? ''
+  const initialAnalysisPositionId = getStoredActiveAnalysisPosition(positions)
   const activeSection = getStoredActiveSection()
+
+  if (initialAnalysisPositionId) {
+    setStoredActiveAnalysisPosition(initialAnalysisPositionId)
+  }
 
   return `
     <main class="admin-page admin-layout" data-active-section="${activeSection}">
@@ -115,14 +138,33 @@ export function renderAdmin(): string {
           <form class="admin-form" id="create-position-form">
             <fieldset class="admin-form-fieldset">
               <legend>Dane pozycji</legend>
-              <div class="form-grid">
+              <div class="form-grid columns-3">
                 <label class="form-field">
                   <span>Symbol</span>
                   <input type="text" name="symbol" required placeholder="np. NDX" />
                 </label>
-                <label class="form-field">
+                <label class="form-field with-tooltip">
                   <span>Symbol TradingView</span>
                   <input type="text" name="quoteSymbol" placeholder="np. NASDAQ:NDX" />
+                  <span class="form-tooltip" role="tooltip">
+                    Możesz użyć prefiksów:
+                    <ul>
+                      <li><code>ALPHA:CL=F</code> – kurs z Alpha Vantage (wymaga klucza)</li>
+                      <li><code>TVC:USOIL</code> – kurs z TradingView</li>
+                    </ul>
+                  </span>
+                </label>
+                <label class="form-field">
+                  <span>Waluta transakcji</span>
+                  <select name="positionCurrency" class="position-currency-select">
+                    <option value="PLN" selected>PLN</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CHF">CHF</option>
+                    <option value="JPY">JPY</option>
+                    <option value="CAD">CAD</option>
+                  </select>
                 </label>
                 <label class="form-field">
                   <span>Typ pozycji</span>
@@ -140,9 +182,42 @@ export function renderAdmin(): string {
                 </label>
                 <label class="form-field">
                   <span>Cena zakupu</span>
-                  <input type="text" name="purchasePrice" required placeholder="np. 420 USD" />
+                  <input type="text" name="purchasePrice" required placeholder="np. 420" />
                 </label>
               </div>
+              <div class="position-size-settings">
+                <div class="position-size-row">
+                  <label class="form-field position-size-type-field">
+                    <span>Metoda wielkości pozycji</span>
+                    <select name="positionSizeType" id="position-size-type">
+                      <option value="capital">Kwota inwestycji</option>
+                      <option value="units">Stała liczba jednostek</option>
+                      <option value="pips">Wartość w pipsach</option>
+                    </select>
+                  </label>
+                  <label class="form-field position-size-field" data-size-field="capital">
+                    <span>Kwota inwestycji</span>
+                    <input type="text" name="positionCapitalAmount" placeholder="np. 15000" />
+                  </label>
+                  <label class="form-field position-size-field" data-size-field="units" hidden>
+                    <span>Liczba jednostek</span>
+                    <input type="number" name="positionUnitsAmount" min="0" step="0.0001" placeholder="np. 2" />
+                  </label>
+                </div>
+                <div class="position-size-row" data-size-field="pips" hidden>
+                  <label class="form-field">
+                    <span>Liczba pipsów</span>
+                    <input type="number" name="positionPipCount" min="0" step="0.01" placeholder="np. 50" />
+                  </label>
+                  <label class="form-field">
+                    <span>Wartość jednego pipsa</span>
+                    <input type="text" name="positionPipValue" placeholder="np. 10" />
+                  </label>
+                </div>
+              </div>
+              <p class="form-hint position-size-summary" id="position-size-summary">
+                Uzupełnij dane, aby obliczyć całkowitą wartość pozycji.
+              </p>
             </fieldset>
 
             <fieldset class="admin-form-fieldset">
@@ -157,6 +232,14 @@ export function renderAdmin(): string {
                     ${renderTrendOption('bullish', 'Wzrostowy', 'bullish')}
                     ${renderTrendOption('neutral', 'Neutralny', 'bullish')}
                     ${renderTrendOption('bearish', 'Spadkowy', 'bullish')}
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Strategia wejścia</span>
+                  <select name="entryStrategy" required>
+                    <option value="level" selected>Wejście z poziomu</option>
+                    <option value="candlePattern">Formacja świecowa</option>
+                    <option value="formationRetest">Retest formacji</option>
                   </select>
                 </label>
                 <label class="form-field">
@@ -205,8 +288,8 @@ export function renderAdmin(): string {
                   <span>Aktywna pozycja</span>
                   <select id="analysis-position-select">
                     ${positions
-                      .map(({ id, name, symbol }, index) => `
-                        <option value="${id}" ${index === 0 ? 'selected' : ''}>${name} (${symbol})</option>
+                      .map(({ id, name, symbol }) => `
+                        <option value="${id}" ${id === initialAnalysisPositionId ? 'selected' : ''}>${name} (${symbol})</option>
                       `)
                       .join('')}
                   </select>
@@ -359,6 +442,138 @@ function setupCreatePositionForm() {
   }
 
   const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+  const purchasePriceInput = form.querySelector<HTMLInputElement>('input[name="purchasePrice"]')
+  const sizeTypeSelect = form.querySelector<HTMLSelectElement>('select[name="positionSizeType"]')
+  const currencySelect = form.querySelector<HTMLSelectElement>('select[name="positionCurrency"]')
+  const sizeFields = Array.from(form.querySelectorAll<HTMLElement>('[data-size-field]'))
+  const capitalInput = form.querySelector<HTMLInputElement>('input[name="positionCapitalAmount"]')
+  const unitsInput = form.querySelector<HTMLInputElement>('input[name="positionUnitsAmount"]')
+  const pipCountInput = form.querySelector<HTMLInputElement>('input[name="positionPipCount"]')
+  const pipValueInput = form.querySelector<HTMLInputElement>('input[name="positionPipValue"]')
+  const summaryElement = form.querySelector<HTMLParagraphElement>('#position-size-summary')
+
+  const validEntryStrategies = ['level', 'candlePattern', 'formationRetest'] as const
+  const validSizeTypes = ['capital', 'units', 'pips'] as const
+
+  const appendCurrencyIfMissing = (label: string | null | undefined, currency: string): string | undefined => {
+    if (!label) {
+      return undefined
+    }
+    const trimmed = label.trim()
+    if (!trimmed) {
+      return undefined
+    }
+    if (/[A-Za-z]{3}$/.test(trimmed)) {
+      return trimmed
+    }
+    return `${trimmed} ${currency}`
+  }
+
+  const parseNumericValue = (label: string | null | undefined): number | undefined => {
+    if (!label || typeof label !== 'string') {
+      return undefined
+    }
+    const sanitized = label.replace(/\s+/g, '').replace(',', '.').match(/-?\d+(\.\d+)?/)
+    if (!sanitized) {
+      return undefined
+    }
+    const value = Number.parseFloat(sanitized[0])
+    return Number.isFinite(value) ? value : undefined
+  }
+
+  const formatPriceLabelLocal = (value: number, currency?: string | null): string => {
+    if (!Number.isFinite(value)) {
+      return '—'
+    }
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      minimumFractionDigits: value >= 100 ? 2 : 3,
+      maximumFractionDigits: value >= 100 ? 2 : 4,
+    })
+    const formatted = formatter.format(value)
+    return currency && currency.trim().length ? `${formatted} ${currency}` : formatted
+  }
+
+  const toggleSizeFields = () => {
+    const activeType = (sizeTypeSelect?.value ?? 'capital').toLowerCase()
+    sizeFields.forEach(field => {
+      const type = field.getAttribute('data-size-field')
+      const shouldShow = type === activeType
+      field.toggleAttribute('hidden', !shouldShow)
+      field.classList.toggle('is-hidden', !shouldShow)
+    })
+    updatePositionSizeSummary()
+  }
+
+  const updatePositionSizeSummary = () => {
+    if (!summaryElement) {
+      return
+    }
+
+    const type = (sizeTypeSelect?.value ?? 'capital') as (typeof validSizeTypes)[number]
+    const selectedCurrency = (currencySelect?.value ?? 'PLN').toUpperCase()
+    const purchasePriceLabel = appendCurrencyIfMissing(purchasePriceInput?.value?.trim(), selectedCurrency) ?? ''
+    const purchasePriceValue = parseNumericValue(purchasePriceLabel)
+
+    let summary = 'Uzupełnij dane, aby obliczyć całkowitą wartość pozycji.'
+
+    if (type === 'capital') {
+      const capitalLabel = capitalInput?.value?.trim() ?? ''
+      if (!capitalLabel) {
+        summary = 'Podaj kwotę inwestycji (np. 15000).' 
+      } else {
+        const capitalValue = parseNumericValue(capitalLabel)
+        const formatted =
+          typeof capitalValue === 'number'
+            ? formatPriceLabelLocal(capitalValue, selectedCurrency)
+            : `${capitalLabel} ${selectedCurrency}`
+        summary = `Całkowita wartość pozycji: ${formatted}`
+      }
+    } else if (type === 'units') {
+      const unitsValue = Number.parseFloat(unitsInput?.value ?? '')
+      if (!Number.isFinite(unitsValue) || unitsValue <= 0) {
+        summary = 'Podaj dodatnią liczbę jednostek / kontraktów.'
+      } else if (typeof purchasePriceValue !== 'number' || !Number.isFinite(purchasePriceValue)) {
+        summary = 'Podaj prawidłową cenę zakupu (np. 420).' 
+      } else {
+        const total = unitsValue * purchasePriceValue
+        summary = `Całkowita wartość pozycji: ${formatPriceLabelLocal(total, selectedCurrency)}`
+      }
+    } else {
+      const pipCount = Number.parseFloat(pipCountInput?.value ?? '')
+      const pipValueRaw = pipValueInput?.value?.trim() ?? ''
+      if (!Number.isFinite(pipCount) || pipCount <= 0) {
+        summary = 'Podaj dodatnią liczbę pipsów.'
+      } else if (!pipValueRaw) {
+        summary = 'Podaj wartość jednego pipsa (np. 10).' 
+      } else {
+        const pipValueLabelWithCurrency = appendCurrencyIfMissing(pipValueRaw, selectedCurrency)
+        const perPipNumeric = parseNumericValue(pipValueLabelWithCurrency)
+        if (typeof perPipNumeric !== 'number' || !Number.isFinite(perPipNumeric)) {
+          summary = 'Wartość jednego pipsa musi być kwotą (np. 10).' 
+        } else {
+          const total = perPipNumeric * pipCount
+          summary = `Całkowita wartość pozycji: ${formatPriceLabelLocal(total, selectedCurrency)}`
+        }
+      }
+    }
+
+    summaryElement.textContent = summary
+  }
+
+  ;[purchasePriceInput, sizeTypeSelect, currencySelect, capitalInput, unitsInput, pipCountInput, pipValueInput]
+    .filter((element): element is HTMLElement => Boolean(element))
+    .forEach(element => {
+      const eventType = element instanceof HTMLSelectElement ? 'change' : 'input'
+      element.addEventListener(eventType, () => {
+        if (element === sizeTypeSelect) {
+          toggleSizeFields()
+        } else {
+          updatePositionSizeSummary()
+        }
+      })
+    })
+
+  toggleSizeFields()
 
   form.addEventListener('submit', async event => {
     event.preventDefault()
@@ -366,22 +581,40 @@ function setupCreatePositionForm() {
 
     const symbol = ((formData.get('symbol') as string) || '').trim().toUpperCase()
     const quoteSymbolInput = (formData.get('quoteSymbol') as string)?.trim()
+    const rawCurrency = (formData.get('positionCurrency') as string) ?? 'PLN'
+    const positionCurrency = rawCurrency.trim().toUpperCase() || 'PLN'
     const quoteSymbol =
       quoteSymbolInput && quoteSymbolInput.length
         ? quoteSymbolInput.replace(/\s+/g, '').toUpperCase()
         : undefined
     const category = formData.get('category') as CategoryOption
-    const purchasePrice = (formData.get('purchasePrice') as string)?.trim()
+    const positionType = (formData.get('positionType') as PositionTypeOption) ?? 'long'
+    const purchasePriceRaw = (formData.get('purchasePrice') as string)?.trim() ?? ''
+    const purchasePrice = appendCurrencyIfMissing(purchasePriceRaw, positionCurrency) ?? purchasePriceRaw
+    const positionSizeType = (formData.get('positionSizeType') as string)?.toLowerCase() as
+      | 'capital'
+      | 'units'
+      | 'pips'
     const trend = formData.get('trend') as TrendOption
     const tp1 = (formData.get('tp1') as string)?.trim()
     const tp2 = (formData.get('tp2') as string)?.trim()
     const tp3 = (formData.get('tp3') as string)?.trim()
     const stopLoss = (formData.get('stopLoss') as string)?.trim()
     const summary = (formData.get('summary') as string)?.trim()
-    const analysisImageFile = formData.get('analysisImage') as File | null
-    const positionType = (formData.get('positionType') as PositionTypeOption) ?? 'long'
+    const entryStrategy = (formData.get('entryStrategy') as string) || 'level'
+
     if (!symbol || !purchasePrice || !stopLoss || !summary) {
       alert('Uzupełnij poprawnie wszystkie wymagane pola formularza.')
+      return
+    }
+
+    if (!validEntryStrategies.includes(entryStrategy as typeof validEntryStrategies[number])) {
+      alert('Wybierz poprawną strategię wejścia.')
+      return
+    }
+
+    if (!validSizeTypes.includes(positionSizeType as (typeof validSizeTypes)[number])) {
+      alert('Wybierz poprawną metodę wielkości pozycji.')
       return
     }
 
@@ -390,6 +623,9 @@ function setupCreatePositionForm() {
       alert('Pozycja o tym symbolu już istnieje. Wybierz inny symbol.')
       return
     }
+
+    const purchasePriceValue = parseNumericValue(purchasePrice)
+    const analysisImageFile = formData.get('analysisImage') as File | null
 
     let analysisImage: string | undefined
     if (analysisImageFile && analysisImageFile.size > 0) {
@@ -402,6 +638,56 @@ function setupCreatePositionForm() {
       }
     }
 
+    let positionSizeValueToSend: number | undefined
+    let positionSizeLabelToSend: string | undefined
+    let positionSizePerPipLabelToSend: string | undefined
+
+    if (positionSizeType === 'capital') {
+      const capitalLabel = capitalInput?.value?.trim()
+      if (!capitalLabel) {
+        alert('Podaj kwotę inwestycji (np. 15000).')
+        return
+      }
+      const capitalWithCurrency = appendCurrencyIfMissing(capitalLabel, positionCurrency)
+      positionSizeLabelToSend = capitalWithCurrency ?? capitalLabel
+      const capitalNumeric = parseNumericValue(positionSizeLabelToSend)
+      if (typeof capitalNumeric === 'number' && Number.isFinite(capitalNumeric)) {
+        positionSizeValueToSend = capitalNumeric
+      }
+    } else if (positionSizeType === 'units') {
+      const unitsValue = Number.parseFloat(unitsInput?.value ?? '')
+      if (!Number.isFinite(unitsValue) || unitsValue <= 0) {
+        alert('Podaj dodatnią liczbę jednostek / kontraktów.')
+        return
+      }
+      if (typeof purchasePriceValue !== 'number' || !Number.isFinite(purchasePriceValue)) {
+        alert('Podaj prawidłową cenę zakupu (np. 420).')
+        return
+      }
+      positionSizeValueToSend = unitsValue
+      positionSizeLabelToSend = `${unitsValue}`
+    } else if (positionSizeType === 'pips') {
+      const pipCount = Number.parseFloat(pipCountInput?.value ?? '')
+      const pipValueRaw = pipValueInput?.value?.trim()
+      if (!Number.isFinite(pipCount) || pipCount <= 0) {
+        alert('Podaj dodatnią liczbę pipsów.')
+        return
+      }
+      if (!pipValueRaw) {
+        alert('Podaj wartość jednego pipsa (np. 10).')
+        return
+      }
+      const pipValueLabelWithCurrency = appendCurrencyIfMissing(pipValueRaw, positionCurrency)
+      const perPipNumeric = parseNumericValue(pipValueLabelWithCurrency)
+      if (typeof perPipNumeric !== 'number' || !Number.isFinite(perPipNumeric)) {
+        alert('Wartość jednego pipsa musi być kwotą (np. 10).')
+        return
+      }
+      positionSizeValueToSend = pipCount
+      positionSizeLabelToSend = `${pipCount} pips`
+      positionSizePerPipLabelToSend = pipValueLabelWithCurrency
+    }
+
     const analysis: TechnicalAnalysis = {
       trend,
       targets: {
@@ -412,6 +698,7 @@ function setupCreatePositionForm() {
       stopLoss,
       summary,
       analysisImage,
+      entryStrategy: entryStrategy as typeof validEntryStrategies[number],
     }
 
     try {
@@ -429,17 +716,27 @@ function setupCreatePositionForm() {
         currentPrice: purchasePrice,
         returnValue: 0,
         quoteSymbol,
-      })
-
-      addPosition({
-        position: {
-          ...createdPosition,
-          quoteSymbol,
-        },
+        positionSizeType,
+        positionSizeValue: positionSizeValueToSend,
+        positionSizeLabel: positionSizeLabelToSend,
+        positionSizePerPipLabel: positionSizePerPipLabelToSend,
+        positionCurrency,
         analysis,
       })
+
+      applyPositionUpdate(createdPosition)
+      await refreshPositionsFromBackend()
+
       alert(`Dodano nową pozycję ${symbol}.`)
       form.reset()
+      if (sizeTypeSelect) {
+        sizeTypeSelect.value = 'capital'
+      }
+      if (currencySelect) {
+        currencySelect.value = 'PLN'
+      }
+      toggleSizeFields()
+      updatePositionSizeSummary()
     } catch (error) {
       console.error('Nie udało się dodać pozycji:', error)
       const message = error instanceof Error ? error.message : 'Nie udało się dodać pozycji.'
@@ -454,38 +751,86 @@ function setupCreatePositionForm() {
 }
 
 function setupAnalysisSection() {
-  const select = document.querySelector<HTMLSelectElement>('#analysis-position-select')
-  const container = document.querySelector<HTMLDivElement>('#analysis-form-container')
-  if (!select || !container) {
+  analysisPositionSelect = document.querySelector<HTMLSelectElement>('#analysis-position-select')
+  analysisFormContainer = document.querySelector<HTMLDivElement>('#analysis-form-container')
+  if (!analysisPositionSelect || !analysisFormContainer) {
     return
   }
 
-  const render = (positionId: string) => {
-    container.innerHTML = renderAnalysisForm(positionId)
-    const form = container.querySelector<HTMLFormElement>('.analysis-edit-form')
-    if (form) {
-      bindAnalysisForm(form)
+  renderAnalysisEditor(analysisPositionSelect.value)
+  setStoredActiveAnalysisPosition(analysisPositionSelect.value)
+
+  analysisPositionSelect.addEventListener('change', () => {
+    if (analysisPositionSelect) {
+      setStoredActiveAnalysisPosition(analysisPositionSelect.value)
+      renderAnalysisEditor(analysisPositionSelect.value)
     }
+  })
+}
+
+function rebuildAnalysisSelector(selectedId?: string): string | null {
+  analysisPositionSelect = document.querySelector<HTMLSelectElement>('#analysis-position-select')
+  if (!analysisPositionSelect) {
+    return null
   }
 
-  render(select.value)
+  const positions = getPositions()
+  if (!positions.length) {
+    analysisPositionSelect.innerHTML = ''
+    analysisPositionSelect.disabled = true
+    return null
+  }
 
-  select.addEventListener('change', () => {
-    render(select.value)
-  })
+  const targetId =
+    selectedId && positions.some(position => position.id === selectedId)
+      ? selectedId
+      : positions[0].id
+
+  analysisPositionSelect.innerHTML = positions
+    .map(({ id, name, symbol }) => `<option value="${id}" ${id === targetId ? 'selected' : ''}>${name} (${symbol})</option>`)
+    .join('')
+  analysisPositionSelect.disabled = false
+  analysisPositionSelect.value = targetId
+
+  return targetId
+}
+
+function renderAnalysisEditor(positionId: string) {
+  analysisPositionSelect = document.querySelector<HTMLSelectElement>('#analysis-position-select')
+  if (analysisPositionSelect && analysisPositionSelect.value !== positionId) {
+    analysisPositionSelect.value = positionId
+  }
+
+  analysisFormContainer = document.querySelector<HTMLDivElement>('#analysis-form-container')
+  if (!analysisFormContainer) {
+    return
+  }
+
+  analysisFormContainer.innerHTML = renderAnalysisForm(positionId)
+  const form = analysisFormContainer.querySelector<HTMLFormElement>('.analysis-edit-form')
+  if (form) {
+    bindAnalysisForm(form)
+  }
 }
 
 function bindAnalysisForm(form: HTMLFormElement) {
   const positionId = form.dataset.positionId ?? ''
+  const databaseId = form.dataset.databaseId ?? ''
   const initialAnalysis =
     positionId ? getTechnicalAnalysis(positionId) || createEmptyAnalysis() : createEmptyAnalysis()
+  const initialPosition = getPositions().find(item => item.id === positionId)
+  const initialQuoteSymbol = initialPosition?.quoteSymbol ?? ''
 
   setupClosureControls(form, initialAnalysis)
+
+  const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
 
   form.addEventListener('submit', async event => {
     event.preventDefault()
     const formData = new FormData(form)
     const currentPositionId = form.dataset.positionId ?? positionId
+    const currentDatabaseId = form.dataset.databaseId ?? databaseId
+    const apiTargetId = currentDatabaseId || currentPositionId
     if (!currentPositionId) {
       return
     }
@@ -500,7 +845,9 @@ function bindAnalysisForm(form: HTMLFormElement) {
     const completionNote = (formData.get('completionNote') as string)?.trim()
     const positionClosed = (formData.get('positionClosed') as string) === 'true'
     const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
-    const positionClosedDateInput = (formData.get('positionClosedDate') as string)?.trim() ?? ''
+    const positionClosedDateExplicit = (formData.get('positionClosedDateInput') as string)?.trim() ?? ''
+    const quoteSymbolInput = ((formData.get('quoteSymbol') as string) ?? '').trim()
+    const entryStrategy = (formData.get('entryStrategy') as string) || 'level'
     const currentImageValue = (formData.get('currentImage') as string) || undefined
     const analysisImageFile = formData.get('analysisImage') as File | null
 
@@ -509,56 +856,204 @@ function bindAnalysisForm(form: HTMLFormElement) {
       return
     }
 
-    if (completed && !completionNote) {
-      alert('Podaj powód oznaczenia analizy jako zrealizowanej.')
+    if (completed && (!completionNote || !completionDateInput)) {
+      alert('Podaj powód realizacji oraz datę realizacji analizy.')
       return
     }
 
-    if (positionClosed && !positionClosedNote) {
-      alert('Dodaj informację dlaczego pozycja została zamknięta.')
+    if (positionClosed && (!positionClosedNote || (!positionClosedDateExplicit && !positionClosedDateInput))) {
+      alert('Dodaj informację oraz datę zamknięcia pozycji.')
       return
     }
 
-    let analysisImage = currentImageValue
-    if (analysisImageFile && analysisImageFile.size > 0) {
-      try {
-        analysisImage = await readFileAsDataURL(analysisImageFile)
-      } catch (error) {
-        console.error('Nie udało się odczytać pliku z analizą:', error)
-        alert('Nie udało się odczytać załączonego obrazu analizy.')
-        return
+    const validEntryStrategies = ['level', 'candlePattern', 'formationRetest'] as const
+    if (!validEntryStrategies.includes(entryStrategy as typeof validEntryStrategies[number])) {
+      alert('Wybierz poprawną strategię wejścia.')
+      return
+    }
+
+    try {
+      if (submitButton) {
+        submitButton.disabled = true
+        submitButton.textContent = 'Zapisywanie...'
+      }
+
+      const currentPosition = getPositions().find(item => item.id === currentPositionId)
+      const originalQuoteSymbol = currentPosition?.quoteSymbol ?? initialQuoteSymbol
+      const shouldUpdateQuoteSymbol = quoteSymbolInput !== originalQuoteSymbol
+
+      if (shouldUpdateQuoteSymbol) {
+        const updatedPositionMetadata = await updatePositionMetadata(apiTargetId, {
+          quoteSymbol: quoteSymbolInput,
+        })
+        if (updatedPositionMetadata) {
+          applyPositionUpdate(updatedPositionMetadata)
+          if (updatedPositionMetadata.databaseId) {
+            form.dataset.databaseId = updatedPositionMetadata.databaseId
+          }
+        }
+      }
+
+      let analysisImage = currentImageValue
+      if (analysisImageFile && analysisImageFile.size > 0) {
+        try {
+          analysisImage = await readFileAsDataURL(analysisImageFile)
+        } catch (error) {
+          console.error('Nie udało się odczytać pliku z analizą:', error)
+          throw new Error('Nie udało się odczytać załączonego obrazu analizy.')
+        }
+      }
+
+      const existingAnalysis = getTechnicalAnalysis(currentPositionId) || createEmptyAnalysis()
+      const resolvedClosedDate = positionClosed
+        ? positionClosedDateExplicit || existingAnalysis.positionClosedDate || new Date().toISOString()
+        : undefined
+      const resolvedCompletionDate = completed
+        ? completionDateInput || existingAnalysis.completionDate || new Date().toISOString()
+        : undefined
+
+      const analysis: TechnicalAnalysis = {
+        trend,
+        targets: {
+          ...(tp1 ? { tp1 } : {}),
+          ...(tp2 ? { tp2 } : {}),
+          ...(tp3 ? { tp3 } : {}),
+        },
+        stopLoss,
+        summary,
+        analysisImage,
+        completed,
+        completionNote: completed ? completionNote : undefined,
+        completionDate: resolvedCompletionDate,
+        positionClosed,
+        positionClosedNote: positionClosed ? positionClosedNote : undefined,
+        positionClosedDate: resolvedClosedDate,
+        entryStrategy: entryStrategy as typeof validEntryStrategies[number],
+      }
+
+      const updatedPosition = await persistPositionAnalysis(apiTargetId, analysis)
+      if (updatedPosition) {
+        applyPositionUpdate(updatedPosition)
+        if (updatedPosition.databaseId) {
+          form.dataset.databaseId = updatedPosition.databaseId
+        }
+      } else {
+        upsertTechnicalAnalysis(currentPositionId, analysis)
+      }
+
+      await refreshPositionsFromBackend()
+      renderAnalysisEditor(currentPositionId)
+      alert('Analiza została zaktualizowana.')
+    } catch (error) {
+      console.error('Nie udało się zaktualizować analizy:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się zaktualizować analizy.'
+      alert(message)
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Zapisz zmiany'
       }
     }
+  })
 
-    const existingAnalysis = getTechnicalAnalysis(currentPositionId) || createEmptyAnalysis()
-    const resolvedClosedDate = positionClosed
-      ? positionClosedDateInput || existingAnalysis.positionClosedDate || new Date().toISOString()
-      : undefined
-
-    const analysis: TechnicalAnalysis = {
-      trend,
-      targets: {
-        ...(tp1 ? { tp1 } : {}),
-        ...(tp2 ? { tp2 } : {}),
-        ...(tp3 ? { tp3 } : {}),
-      },
-      stopLoss,
-      summary,
-      analysisImage,
-      completed,
-      completionNote: completed ? completionNote : undefined,
-      completionDate: completed
-        ? existingAnalysis.completed && existingAnalysis.completionDate
-          ? existingAnalysis.completionDate
-          : new Date().toISOString()
-        : undefined,
-      positionClosed,
-      positionClosedNote: positionClosed ? positionClosedNote : undefined,
-      positionClosedDate: resolvedClosedDate,
+  const deleteButton = form.querySelector<HTMLButtonElement>('.delete-analysis-button')
+  deleteButton?.addEventListener('click', async event => {
+    event.preventDefault()
+    const currentPositionId = form.dataset.positionId ?? positionId
+    const currentDatabaseId = form.dataset.databaseId ?? databaseId
+    const apiTargetId = currentDatabaseId || currentPositionId
+    if (!currentPositionId) {
+      return
     }
 
-    upsertTechnicalAnalysis(currentPositionId, analysis)
-    alert('Analiza została zaktualizowana.')
+    const shouldDelete = window.confirm('Czy na pewno chcesz usunąć tę analizę?')
+    if (!shouldDelete) {
+      return
+    }
+
+    const originalLabel = deleteButton.textContent
+
+    try {
+      deleteButton.disabled = true
+      deleteButton.textContent = 'Usuwanie...'
+
+      const updatedPosition = await removePositionAnalysis(apiTargetId)
+      if (updatedPosition) {
+        applyPositionUpdate(updatedPosition)
+        if (updatedPosition.databaseId) {
+          form.dataset.databaseId = updatedPosition.databaseId
+        }
+      }
+
+      await refreshPositionsFromBackend()
+      setStoredActiveAnalysisPosition(currentPositionId)
+      removeTechnicalAnalysis(currentPositionId)
+
+      window.requestAnimationFrame(() => {
+        renderAnalysisEditor(currentPositionId)
+      })
+
+      alert('Analiza została usunięta.')
+    } catch (error) {
+      console.error('Nie udało się usunąć analizy:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się usunąć analizy.'
+      alert(message)
+    } finally {
+      deleteButton.disabled = false
+      deleteButton.textContent = originalLabel ?? 'Usuń analizę'
+    }
+  })
+
+  const deletePositionButton = form.querySelector<HTMLButtonElement>('.delete-position-button')
+  deletePositionButton?.addEventListener('click', async event => {
+    event.preventDefault()
+    const currentPositionId = form.dataset.positionId ?? positionId
+    const currentDatabaseId = form.dataset.databaseId ?? databaseId
+    const apiTargetId = currentDatabaseId || currentPositionId
+    if (!currentPositionId) {
+      return
+    }
+
+    const shouldDelete = window.confirm('Czy na pewno chcesz usunąć tę pozycję? Operacja usunie wszystkie dane powiązane z analizą oraz historią cen.')
+    if (!shouldDelete) {
+      return
+    }
+
+    const originalLabel = deletePositionButton.textContent
+
+    try {
+      deletePositionButton.disabled = true
+      deletePositionButton.textContent = 'Usuwanie pozycji...'
+
+      await deletePortfolioPosition(apiTargetId)
+      removePositionFromStore(currentPositionId)
+      await refreshPositionsFromBackend()
+
+      const remainingPositions = getPositions()
+      if (remainingPositions.length) {
+        const fallbackId = remainingPositions.find(pos => pos.id !== currentPositionId)?.id ?? remainingPositions[0].id
+        const nextId = rebuildAnalysisSelector(fallbackId)
+        if (nextId) {
+          setStoredActiveAnalysisPosition(nextId)
+          renderAnalysisEditor(nextId)
+        }
+      } else {
+        rebuildAnalysisSelector()
+        setStoredActiveAnalysisPosition('')
+        if (analysisFormContainer) {
+          analysisFormContainer.innerHTML = '<p class="empty-state">Brak dostępnych pozycji. Dodaj pozycję, aby rozpocząć edycję analiz.</p>'
+        }
+      }
+
+      alert('Pozycja została usunięta.')
+    } catch (error) {
+      console.error('Nie udało się usunąć pozycji:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się usunąć pozycji.'
+      alert(message)
+    } finally {
+      deletePositionButton.disabled = false
+      deletePositionButton.textContent = originalLabel ?? 'Usuń pozycję'
+    }
   })
 
   bindAnalysisPreview(form)
@@ -612,6 +1107,21 @@ function setupClosureControls(form: HTMLFormElement, analysis: TechnicalAnalysis
       }
     }
 
+    const explicitDateInput = closureSection.querySelector<HTMLInputElement>('input[name="positionClosedDateInput"]')
+    if (explicitDateInput) {
+      if (closed) {
+        if (options.date) {
+          explicitDateInput.value = options.date.slice(0, 10)
+        }
+        explicitDateInput.disabled = false
+        explicitDateInput.required = true
+      } else {
+        explicitDateInput.value = ''
+        explicitDateInput.disabled = true
+        explicitDateInput.required = false
+      }
+    }
+
     if (closeButton) {
       closeButton.hidden = closed
     }
@@ -621,7 +1131,7 @@ function setupClosureControls(form: HTMLFormElement, analysis: TechnicalAnalysis
 
     if (info) {
       if (closed) {
-        const displayDate = hiddenDate?.value || options.date
+        const displayDate = explicitDateInput?.value || options.date
         info.textContent = displayDate ? `Zamknięto: ${formatDate(displayDate)}` : 'Pozycja zamknięta'
       } else {
         info.textContent = ''
@@ -705,7 +1215,7 @@ function setupStatusForm() {
         summary: news.summary,
       }
 
-      addStatusUpdate(update)
+      updateStatusUpdate(update)
       refreshAdminNewsPreview()
       alert('Dodano nową aktualność.')
       form.reset()
@@ -884,7 +1394,7 @@ function renderAnalysisForm(positionId: string): string {
   const closedDate = analysis.positionClosedDate ?? ''
 
   return `
-    <form class="admin-form analysis-edit-form" data-position-id="${positionId}">
+    <form class="admin-form analysis-edit-form" data-position-id="${positionId}" data-database-id="${position.databaseId ?? ''}">
       <div class="analysis-form-title">
         <h3>${position.name}</h3>
         <div class="analysis-form-meta">
@@ -892,6 +1402,7 @@ function renderAnalysisForm(positionId: string): string {
           <span class="position-type-badge ${position.positionType}">
             ${position.positionType === 'short' ? 'SHORT' : 'LONG'}
           </span>
+          ${renderPositionValueBadge(position)}
         </div>
       </div>
       <div class="form-grid">
@@ -902,6 +1413,25 @@ function renderAnalysisForm(positionId: string): string {
             ${renderTrendOption('neutral', 'Neutralny', analysis.trend)}
             ${renderTrendOption('bearish', 'Spadkowy', analysis.trend)}
           </select>
+        </label>
+        <label class="form-field">
+          <span>Strategia wejścia</span>
+          <select name="entryStrategy" required>
+            <option value="level" ${analysis.entryStrategy === 'level' ? 'selected' : ''}>Wejście z poziomu</option>
+            <option value="candlePattern" ${analysis.entryStrategy === 'candlePattern' ? 'selected' : ''}>Formacja świecowa</option>
+            <option value="formationRetest" ${analysis.entryStrategy === 'formationRetest' ? 'selected' : ''}>Retest formacji</option>
+          </select>
+        </label>
+        <label class="form-field with-tooltip">
+          <span>Symbol TradingView</span>
+          <input type="text" name="quoteSymbol" placeholder="np. NASDAQ:NDX" />
+          <span class="form-tooltip" role="tooltip">
+            Możesz użyć prefiksów:
+            <ul>
+              <li><code>ALPHA:CL=F</code> – kurs z Alpha Vantage (wymaga klucza)</li>
+              <li><code>TVC:USOIL</code> – kurs z TradingView</li>
+            </ul>
+          </span>
         </label>
         <label class="form-field">
           <span>TP1</span>
@@ -937,14 +1467,22 @@ function renderAnalysisForm(positionId: string): string {
         <textarea name="summary" rows="4" required>${analysis.summary ?? ''}</textarea>
       </label>
       <div class="analysis-completion">
-        <label class="checkbox">
-          <input type="checkbox" name="completed" ${analysis.completed ? 'checked' : ''} />
-          <span>Analiza zrealizowana</span>
-        </label>
-        <label class="form-field">
-          <span>Powód realizacji</span>
-          <textarea name="completionNote" rows="3" placeholder="Dlaczego uznajemy analizę za zrealizowaną?">${analysis.completionNote ?? ''}</textarea>
-        </label>
+        <div class="form-grid columns-3">
+          <label class="checkbox">
+            <input type="checkbox" name="completed" ${analysis.completed ? 'checked' : ''} />
+            <span>Analiza zrealizowana</span>
+          </label>
+          <label class="form-field">
+            <span>Powód realizacji</span>
+            <textarea name="completionNote" rows="3" placeholder="Dlaczego uznajemy analizę za zrealizowaną?">${analysis.completionNote ?? ''}</textarea>
+          </label>
+          <label class="form-field">
+            <span>Data realizacji</span>
+            <input type="date" name="completionDate" value="${
+              analysis.completed && analysis.completionDate ? analysis.completionDate.slice(0, 10) : ''
+            }" />
+          </label>
+        </div>
         ${
           analysis.completed && analysis.completionDate
             ? `<p class="analysis-info">Zrealizowano: ${formatDate(analysis.completionDate)}</p>`
@@ -952,31 +1490,45 @@ function renderAnalysisForm(positionId: string): string {
         }
       </div>
       <div class="analysis-closure" data-closed="${isClosed ? 'true' : 'false'}">
-        <input type="hidden" name="positionClosed" value="${isClosed ? 'true' : 'false'}" />
-        <input type="hidden" name="positionClosedDate" value="${closedDate}" />
-        <label class="form-field closure-note">
-          <span>Informacja o zamknięciu</span>
-          <textarea
-            name="positionClosedNote"
-            rows="3"
-            ${isClosed ? '' : 'disabled'}
-            placeholder="Dlaczego pozycja została zamknięta?">${closedNote}</textarea>
-        </label>
-        <div class="analysis-closure-actions">
-          <button type="button" class="secondary close-analysis-button" ${isClosed ? 'hidden' : ''}>
-            Zamknij pozycję
-          </button>
-          <button type="button" class="ghost reopen-closure-button" ${isClosed ? '' : 'hidden'}>
-            Oznacz jako aktywną
-          </button>
-          <p class="analysis-info closure-info">
-            ${isClosed && closedDate ? `Zamknięto: ${formatDate(closedDate)}` : ''}
-          </p>
+        <div class="form-grid columns-3">
+          <input type="hidden" name="positionClosed" value="${isClosed ? 'true' : 'false'}" />
+          <input type="hidden" name="positionClosedDate" value="${closedDate}" />
+          <label class="form-field closure-note">
+            <span>Informacja o zamknięciu</span>
+            <textarea
+              name="positionClosedNote"
+              rows="3"
+              ${isClosed ? '' : 'disabled'}
+              placeholder="Dlaczego pozycja została zamknięta?">${closedNote}</textarea>
+          </label>
+          <label class="form-field">
+            <span>Data zamknięcia</span>
+            <input type="date" name="positionClosedDateInput" value="${
+              isClosed && closedDate ? closedDate.slice(0, 10) : ''
+            }" ${isClosed ? '' : 'disabled'} />
+          </label>
+          <div class="analysis-closure-actions">
+            <button type="button" class="secondary close-analysis-button" ${isClosed ? 'hidden' : ''}>
+              Zamknij pozycję
+            </button>
+            <button type="button" class="ghost reopen-closure-button" ${isClosed ? '' : 'hidden'}>
+              Oznacz jako aktywną
+            </button>
+            <p class="analysis-info closure-info">
+              ${isClosed && closedDate ? `Zamknięto: ${formatDate(closedDate)}` : ''}
+            </p>
+          </div>
         </div>
       </div>
       <div class="admin-form-actions has-secondary">
-        <button type="button" class="ghost preview-analysis-button">Podgląd widoku</button>
-        <button type="submit" class="secondary">Zapisz zmiany</button>
+        <div class="actions-left">
+          <button type="button" class="secondary preview-analysis-button">Podgląd widoku</button>
+        </div>
+        <div class="actions-right">
+          <button type="button" class="secondary danger delete-analysis-button">Usuń analizę</button>
+          <button type="button" class="secondary danger delete-position-button">Usuń pozycję</button>
+          <button type="submit" class="secondary">Zapisz zmiany</button>
+        </div>
       </div>
     </form>
   `
@@ -989,6 +1541,7 @@ function createEmptyAnalysis(): TechnicalAnalysis {
     stopLoss: '',
     summary: '',
     positionClosed: false,
+    entryStrategy: 'level',
   }
 }
 
@@ -1053,7 +1606,7 @@ async function openAnalysisPreview(form: HTMLFormElement) {
   const tp3 = (formData.get('tp3') as string)?.trim()
   const positionClosed = (formData.get('positionClosed') as string) === 'true'
   const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
-  const positionClosedDateRaw = (formData.get('positionClosedDate') as string)?.trim() ?? ''
+  const positionClosedDateExplicit = (formData.get('positionClosedDateInput') as string)?.trim() ?? ''
 
   let analysisImage = (formData.get('currentImage') as string) || undefined
   const analysisImageFile = formData.get('analysisImage') as File | null
@@ -1081,7 +1634,7 @@ async function openAnalysisPreview(form: HTMLFormElement) {
     positionClosed,
     positionClosedNote: positionClosed ? positionClosedNote || undefined : undefined,
     positionClosedDate: positionClosed
-      ? positionClosedDateRaw || new Date().toISOString()
+      ? positionClosedDateExplicit || new Date().toISOString()
       : undefined,
   }
 
@@ -1109,6 +1662,7 @@ function buildAnalysisPreviewHtml(
   const isClosed = analysis.positionClosed ?? false
   const closedDateLabel =
     isClosed && analysis.positionClosedDate ? formatDate(analysis.positionClosedDate) : undefined
+  const positionValueLabel = getPositionValueLabel(position)
 
   return `
     <div class="analysis-preview-modal">
@@ -1120,6 +1674,7 @@ function buildAnalysisPreviewHtml(
             <span class="preview-symbol">${position.symbol}</span>
             <span class="preview-type ${position.positionType}">${typeLabel}</span>
             <span class="preview-category">${position.categoryName}</span>
+            ${positionValueLabel ? `<span class="preview-position-value">Wartość: ${positionValueLabel}</span>` : ''}
           </div>
           ${
             isClosed
@@ -1144,6 +1699,10 @@ function buildAnalysisPreviewHtml(
             <article class="preview-card">
               <span class="preview-label">Stop loss</span>
               <span class="preview-value">${analysis.stopLoss || '—'}</span>
+            </article>
+            <article class="preview-card">
+              <span class="preview-label">Strategia wejścia</span>
+              <span class="preview-value">${renderEntryStrategyLabel(analysis.entryStrategy)}</span>
             </article>
           </div>
           <div class="preview-summary">
@@ -1299,4 +1858,87 @@ function setModalSubmitting(submitting: boolean): void {
     submitButton.disabled = submitting
     submitButton.textContent = submitting ? 'Zapisywanie...' : 'Zapisz zmiany'
   }
+}
+
+function getStoredActiveAnalysisPosition(positions: Position[]): string {
+  if (typeof window === 'undefined') {
+    return positions[0]?.id ?? ''
+  }
+  const stored = window.sessionStorage.getItem(ACTIVE_ANALYSIS_STORAGE_KEY)
+  if (stored && positions.some(position => position.id === stored)) {
+    return stored
+  }
+  const fallback = positions[0]?.id ?? ''
+  if (fallback) {
+    window.sessionStorage.setItem(ACTIVE_ANALYSIS_STORAGE_KEY, fallback)
+  } else {
+    window.sessionStorage.removeItem(ACTIVE_ANALYSIS_STORAGE_KEY)
+  }
+  return fallback
+}
+
+function setStoredActiveAnalysisPosition(positionId: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (positionId) {
+    window.sessionStorage.setItem(ACTIVE_ANALYSIS_STORAGE_KEY, positionId)
+  } else {
+    window.sessionStorage.removeItem(ACTIVE_ANALYSIS_STORAGE_KEY)
+  }
+}
+
+async function refreshPositionsFromBackend(): Promise<void> {
+  if (isRefreshingPositions) {
+    return
+  }
+
+  isRefreshingPositions = true
+  try {
+    const updatedPositions = await fetchPositionsFromApi()
+    if (Array.isArray(updatedPositions)) {
+      replacePositions(updatedPositions)
+    }
+  } catch (error) {
+    console.error('Nie udało się odświeżyć pozycji:', error)
+  } finally {
+    isRefreshingPositions = false
+  }
+}
+
+function renderEntryStrategyLabel(entryStrategy: TechnicalAnalysis['entryStrategy']): string {
+  switch (entryStrategy) {
+    case 'candlePattern':
+      return 'Formacja świecowa'
+    case 'formationRetest':
+      return 'Retest formacji'
+    case 'level':
+    default:
+      return 'Wejście z poziomu'
+  }
+}
+
+function getPositionValueLabel(position: Position): string | null {
+  if (position.positionTotalValueLabel) {
+    return position.positionTotalValueLabel
+  }
+  if (
+    position.positionSizeType === 'pips' &&
+    typeof position.positionSizeValue === 'number' &&
+    position.positionSizePerPipLabel
+  ) {
+    return `${position.positionSizeValue} × ${position.positionSizePerPipLabel}`
+  }
+  if (position.positionSizeType === 'units' && typeof position.positionSizeValue === 'number') {
+    return `${position.positionSizeValue} × ${position.purchasePrice}`
+  }
+  if (position.positionSizeType === 'capital' && position.positionSizeLabel) {
+    return position.positionSizeLabel
+  }
+  return null
+}
+
+function renderPositionValueBadge(position: Position): string {
+  const label = getPositionValueLabel(position)
+  return label ? `<span class="position-value-badge">Wartość: ${label}</span>` : ''
 }

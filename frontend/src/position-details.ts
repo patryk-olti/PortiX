@@ -1,4 +1,5 @@
 import { getPositionById, getTechnicalAnalysis, getModifications, getInsights } from './store';
+import type { Position, TechnicalAnalysis } from './types';
 
 export function renderPositionDetails(positionId: string): string {
   const position = getPositionById(positionId);
@@ -52,6 +53,10 @@ export function renderPositionDetails(positionId: string): string {
             <span class="stat-value">${position.purchasePrice}</span>
           </div>
           <div class="stat-item">
+            <span class="stat-label">Wartość pozycji</span>
+            <span class="stat-value">${renderPositionTotalValue(position)}</span>
+          </div>
+          <div class="stat-item">
             <span class="stat-label">Aktualny kurs</span>
             <span class="stat-value">${position.currentPrice}</span>
           </div>
@@ -80,6 +85,10 @@ export function renderPositionDetails(positionId: string): string {
           <div class="analysis-card">
             <span class="analysis-label">Negacja scenariusza (SL)</span>
             <span class="analysis-value">${analysis?.stopLoss || 'N/A'}</span>
+          </div>
+          <div class="analysis-card">
+            <span class="analysis-label">Strategia wejścia</span>
+            <span class="analysis-value">${renderEntryStrategyLabel(analysis?.entryStrategy)}</span>
           </div>
         </div>
         <div class="analysis-summary">
@@ -193,6 +202,34 @@ function formatDate(dateString: string): string {
     month: 'long',
     day: 'numeric',
   });
+}
+
+function renderEntryStrategyLabel(entryStrategy?: TechnicalAnalysis['entryStrategy']): string {
+  switch (entryStrategy) {
+    case 'candlePattern':
+      return 'Formacja świecowa'
+    case 'formationRetest':
+      return 'Retest formacji'
+    case 'level':
+    default:
+      return 'Wejście z poziomu'
+  }
+}
+
+function renderPositionTotalValue(position: Position): string {
+  if (typeof position.positionTotalValueLabel === 'string' && position.positionTotalValueLabel.length) {
+    return position.positionTotalValueLabel
+  }
+  if (position.positionSizeType === 'pips' && typeof position.positionSizeValue === 'number' && position.positionSizePerPipLabel) {
+    return `${position.positionSizeValue} × ${position.positionSizePerPipLabel}`
+  }
+  if (position.positionSizeType === 'units' && typeof position.positionSizeValue === 'number') {
+    return `${position.positionSizeValue} × ${position.purchasePrice}`
+  }
+  if (position.positionSizeType === 'capital' && position.positionSizeLabel) {
+    return position.positionSizeLabel
+  }
+  return '—'
 }
 
 export function setupPositionDetailsHandlers(): void {

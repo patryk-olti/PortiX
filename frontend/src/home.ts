@@ -50,6 +50,7 @@ export function renderHome(): string {
             <option value="commodity">Surowiec</option>
             <option value="hedge">Zabezpieczenie</option>
             <option value="cash">Gotówka</option>
+            <option value="cryptocurrency">Kryptowaluty</option>
           </select>
         </div>
         <div class="portfolio-table-wrapper">
@@ -59,6 +60,7 @@ export function renderHome(): string {
                 <th>Pozycja</th>
                 <th>Kategoria</th>
                 <th>Cena zakupu</th>
+                <th>Wartość pozycji</th>
                 <th>Aktualny kurs</th>
                 <th>Zwrot</th>
                 <th></th>
@@ -79,6 +81,7 @@ export function renderHome(): string {
                   </td>
                   <td>${position.categoryName}</td>
                   <td>${position.purchasePrice}</td>
+                  <td>${position.positionTotalValueLabel ?? '—'}</td>
                   <td>${position.currentPrice}</td>
                   <td class="${
                     position.returnValue > 0
