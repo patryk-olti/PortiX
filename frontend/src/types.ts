@@ -1,6 +1,7 @@
 export interface Position {
   id: string;
   symbol: string;
+  quoteSymbol?: string;
   name: string;
   category: 'stock' | 'commodity' | 'hedge' | 'cash';
   categoryName: string;

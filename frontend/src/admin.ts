@@ -121,6 +121,10 @@ export function renderAdmin(): string {
                   <input type="text" name="symbol" required placeholder="np. NDX" />
                 </label>
                 <label class="form-field">
+                  <span>Symbol TradingView</span>
+                  <input type="text" name="quoteSymbol" placeholder="np. NASDAQ:NDX" />
+                </label>
+                <label class="form-field">
                   <span>Typ pozycji</span>
                   <select name="positionType" required>
                     ${positionTypeOptions
@@ -361,6 +365,11 @@ function setupCreatePositionForm() {
     const formData = new FormData(form)
 
     const symbol = ((formData.get('symbol') as string) || '').trim().toUpperCase()
+    const quoteSymbolInput = (formData.get('quoteSymbol') as string)?.trim()
+    const quoteSymbol =
+      quoteSymbolInput && quoteSymbolInput.length
+        ? quoteSymbolInput.replace(/\s+/g, '').toUpperCase()
+        : undefined
     const category = formData.get('category') as CategoryOption
     const purchasePrice = (formData.get('purchasePrice') as string)?.trim()
     const trend = formData.get('trend') as TrendOption
@@ -419,9 +428,16 @@ function setupCreatePositionForm() {
         purchasePrice,
         currentPrice: purchasePrice,
         returnValue: 0,
+        quoteSymbol,
       })
 
-      addPosition({ position: createdPosition, analysis })
+      addPosition({
+        position: {
+          ...createdPosition,
+          quoteSymbol,
+        },
+        analysis,
+      })
       alert(`Dodano nową pozycję ${symbol}.`)
       form.reset()
     } catch (error) {

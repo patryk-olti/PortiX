@@ -61,6 +61,20 @@ export interface NewsResponse {
   updatedAt: string
 }
 
+export interface TradingViewQuoteRequest {
+  symbols: string[]
+}
+
+export interface TradingViewQuoteResponse {
+  symbol: string
+  price: number | null
+  currency?: string | null
+  name?: string | null
+  description?: string | null
+  exchange?: string | null
+  updatedAt: string
+}
+
 export interface CreatePositionPayload {
   symbol: string
   name?: string
@@ -69,6 +83,7 @@ export interface CreatePositionPayload {
   purchasePrice: string
   currentPrice?: string
   returnValue?: number
+  quoteSymbol?: string
 }
 
 export type PositionResponse = Position
@@ -127,6 +142,39 @@ export async function createPosition(payload: CreatePositionPayload): Promise<Po
   }
 
   return (json as { data: PositionResponse }).data
+}
+
+export async function fetchTradingViewQuotes(
+  request: TradingViewQuoteRequest,
+): Promise<TradingViewQuoteResponse[]> {
+  const response = await fetch(resolveEndpoint('/api/prices'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore parse errors, handled below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to fetch quotes')
+        : 'Failed to fetch quotes'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: TradingViewQuoteResponse[] }).data
 }
 
 export async function deleteNews(id: string): Promise<void> {

@@ -93,10 +93,19 @@ function normalizeState(parsed: Partial<AdminState>): AdminState {
   }
 }
 
+function normalizeQuoteSymbol(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
 function migratePositions(source: Position[]): Position[] {
   return source.map(position => ({
     ...position,
     positionType: position.positionType ?? 'long',
+    quoteSymbol: normalizeQuoteSymbol((position as Position & { quoteSymbol?: unknown }).quoteSymbol),
   }))
 }
 
@@ -268,6 +277,76 @@ export function getStatusUpdates(): StatusUpdate[] {
   return clone(state.statusUpdates)
 }
 
+function parseNumericValue(label: string): number | undefined {
+  if (typeof label !== 'string') {
+    return undefined
+  }
+
+  const sanitized = label
+    .replace(/\s+/g, '')
+    .replace(',', '.')
+    .match(/-?\d+(\.\d+)?/)
+
+  if (!sanitized) {
+    return undefined
+  }
+
+  const value = Number.parseFloat(sanitized[0])
+  return Number.isFinite(value) ? value : undefined
+}
+
+function formatPriceLabel(value: number, currency?: string | null): string {
+  if (!Number.isFinite(value)) {
+    return '—'
+  }
+
+  const formatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: value >= 100 ? 2 : 3,
+    maximumFractionDigits: value >= 100 ? 2 : 4,
+  })
+
+  const formatted = formatter.format(value)
+  return currency && currency.trim().length ? `${formatted} ${currency}` : formatted
+}
+
+export function applyPositionQuotes(updates: Array<{ id: string; symbol?: string; price: number | null | undefined; currency?: string | null }>) {
+  if (!Array.isArray(updates) || !updates.length) {
+    return
+  }
+
+  updateState(current => {
+    const next = clone(current)
+
+    updates.forEach(update => {
+      if (!update?.id) {
+        return
+      }
+      const target = next.positions.find(position => position.id === update.id)
+      if (!target) {
+        return
+      }
+
+      if (typeof update.symbol === 'string' && update.symbol.trim()) {
+        target.quoteSymbol = update.symbol.trim()
+      }
+
+      if (typeof update.price === 'number' && Number.isFinite(update.price)) {
+        target.currentPrice = formatPriceLabel(update.price, update.currency)
+
+        const purchaseValue = parseNumericValue(target.purchasePrice)
+        if (typeof purchaseValue === 'number' && purchaseValue !== 0) {
+          const changePercent = ((update.price - purchaseValue) / purchaseValue) * 100
+          const rounded = Math.round(changePercent * 10) / 10
+          target.returnValue = rounded
+          target.return = `${rounded >= 0 ? '+' : ''}${rounded.toFixed(1)}%`
+        }
+      }
+    })
+
+    return next
+  })
+}
+
 export function replacePositions(positions: Position[]) {
   updateState(current => {
     const next = clone(current)
@@ -309,7 +388,10 @@ export function addPosition(payload: NewPositionPayload) {
   updateState(current => {
     const next = clone(current)
     next.positions = next.positions.filter(position => position.id !== payload.position.id)
-    next.positions.push(payload.position)
+    next.positions.push({
+      ...payload.position,
+      quoteSymbol: normalizeQuoteSymbol(payload.position.quoteSymbol),
+    })
     next.technicalAnalysis[payload.position.id] = payload.analysis
 
     if (payload.modifications?.length) {

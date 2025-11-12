@@ -9,6 +9,7 @@ const {
   POSITION_CATEGORY_VALUES,
   POSITION_TYPE_VALUES,
 } = require('./lib/positions')
+const { fetchTradingViewQuotes } = require('./lib/tradingview')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
 
 const app = express()
@@ -84,6 +85,38 @@ app.get('/api/positions', async (_req, res) => {
     console.error('Failed to fetch positions:', error)
     res.status(500).json({
       error: 'Failed to fetch positions',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/prices', async (req, res) => {
+  const { symbols } = req.body ?? {}
+
+  if (!Array.isArray(symbols) || !symbols.length) {
+    res.status(400).json({ error: 'Provide an array of symbols' })
+    return
+  }
+
+  try {
+    const quotes = await fetchTradingViewQuotes(symbols)
+    const data = quotes
+      .filter(item => item && typeof item.symbol === 'string')
+      .map(item => ({
+        symbol: item.symbol,
+        price: typeof item.price === 'number' ? item.price : null,
+        currency: item.currency,
+        name: item.name,
+        description: item.description,
+        exchange: item.exchange,
+        updatedAt: new Date().toISOString(),
+      }))
+
+    res.json({ data })
+  } catch (error) {
+    console.error('Failed to fetch TradingView quotes:', error)
+    res.status(502).json({
+      error: 'Failed to fetch quotes from TradingView',
       details: error instanceof Error ? error.message : String(error),
     })
   }

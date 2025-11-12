@@ -4,6 +4,7 @@ export const initialPositions: Position[] = [
   {
     id: 'soxx',
     symbol: 'SOXX',
+    quoteSymbol: 'NASDAQ:SOXX',
     name: 'SOXX ETF',
     category: 'stock',
     categoryName: 'Akcje',
@@ -16,6 +17,7 @@ export const initialPositions: Position[] = [
   {
     id: 'msft',
     symbol: 'MSFT',
+    quoteSymbol: 'NASDAQ:MSFT',
     name: 'Microsoft Corporation',
     category: 'stock',
     categoryName: 'Akcje',
@@ -28,6 +30,7 @@ export const initialPositions: Position[] = [
   {
     id: 'dax',
     symbol: 'DAX',
+    quoteSymbol: 'INDEX:DAX',
     name: 'DAX Futures',
     category: 'hedge',
     categoryName: 'Zabezpieczenie',
@@ -40,6 +43,7 @@ export const initialPositions: Position[] = [
   {
     id: 'gold',
     symbol: 'XAUUSD',
+    quoteSymbol: 'TVC:GOLD',
     name: 'Gold Spot',
     category: 'commodity',
     categoryName: 'Surowiec',
@@ -52,6 +56,7 @@ export const initialPositions: Position[] = [
   {
     id: 'cash',
     symbol: 'CASH',
+    quoteSymbol: 'OANDA:USDCAD',
     name: 'Cash PLN',
     category: 'cash',
     categoryName: 'Gotówka',
