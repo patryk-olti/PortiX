@@ -140,18 +140,17 @@ export function renderHome(): string {
   const positions = getPositions()
   const portfolioValueMetric = aggregateMonetaryValue(
     positions.map(position => extractCurrentValueEntry(position)),
+    'PLN',
   )
   const investedCapitalMetric = aggregateMonetaryValue(
     positions.map(position => extractInvestedEntry(position)),
+    'PLN',
   )
   const activePositionsLabel = formatActivePositionsLabel(positions.length)
   const comparableTotals =
     portfolioValueMetric.value !== null &&
     investedCapitalMetric.value !== null &&
-    Math.abs(investedCapitalMetric.value) > Number.EPSILON &&
-    portfolioValueMetric.consistent &&
-    investedCapitalMetric.consistent &&
-    portfolioValueMetric.currency === investedCapitalMetric.currency
+    Math.abs(investedCapitalMetric.value) > Number.EPSILON
   const portfolioDescriptor = comparableTotals
     ? `${formatPercentageChange(((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100)} względem kapitału`
     : activePositionsLabel
