@@ -2,12 +2,16 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { pool } = require('./lib/db')
-const { ensureSchema } = require('./lib/schema')
+const { ensureSchema, POSITION_SIZE_TYPE_VALUES } = require('./lib/schema')
 const {
   createPosition,
   listPositions,
   POSITION_CATEGORY_VALUES,
   POSITION_TYPE_VALUES,
+  upsertPositionAnalysis,
+  deletePositionAnalysis,
+  deletePosition,
+  updatePositionQuoteSymbol,
 } = require('./lib/positions')
 const { fetchTradingViewQuotes } = require('./lib/tradingview')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
@@ -51,7 +55,8 @@ app.use(
   }),
 )
 
-app.use(express.json())
+app.use(express.json({ limit: '25mb' }))
+app.use(express.urlencoded({ limit: '25mb', extended: true }))
 
 app.get('/health', async (_req, res) => {
   try {
@@ -157,6 +162,52 @@ app.post('/api/positions', async (req, res) => {
 
     if (error?.code === 'POSITION_EXISTS') {
       res.status(409).json({ error: 'Position with this symbol already exists' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS') {
+      res.status(400).json({ error: 'Analysis payload is invalid' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_TREND') {
+      res.status(400).json({
+        error: 'Invalid analysis trend value',
+        allowed: error.allowed,
+      })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_STOP_LOSS') {
+      res.status(400).json({ error: 'Analysis stop loss is required' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_SUMMARY') {
+      res.status(400).json({ error: 'Analysis summary is required' })
+      return
+    }
+
+    if (error?.code === 'INVALID_POSITION_SIZE_TYPE') {
+      res.status(400).json({
+        error: 'Invalid position size type',
+        allowed: POSITION_SIZE_TYPE_VALUES,
+      })
+      return
+    }
+
+    if (error?.code === 'INVALID_POSITION_SIZE_VALUE') {
+      res.status(400).json({ error: 'Invalid position size value' })
+      return
+    }
+
+    if (error?.code === 'INVALID_POSITION_SIZE_PER_PIP') {
+      res.status(400).json({ error: 'Invalid per-pip value' })
+      return
+    }
+
+    if (error?.code === 'INVALID_PURCHASE_PRICE_VALUE') {
+      res.status(400).json({ error: 'Unable to compute position value from purchase price' })
       return
     }
 
@@ -273,6 +324,142 @@ app.delete('/api/news/:id', async (req, res) => {
     console.error('Failed to delete news:', error)
     res.status(500).json({
       error: 'Failed to delete news',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.put('/api/positions/:id/analysis', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing position id' })
+    return
+  }
+
+  const payload = req.body ?? {}
+  const analysisPayload =
+    payload && typeof payload === 'object' && payload.analysis && typeof payload.analysis === 'object'
+      ? payload.analysis
+      : payload
+
+  try {
+    const position = await upsertPositionAnalysis(id, analysisPayload)
+    if (!position) {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+    res.json({ data: position })
+  } catch (error) {
+    if (error?.code === 'POSITION_NOT_FOUND') {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS') {
+      res.status(400).json({ error: 'Analysis payload is invalid' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_TREND') {
+      res.status(400).json({ error: 'Invalid analysis trend value', allowed: error.allowed })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_STOP_LOSS') {
+      res.status(400).json({ error: 'Analysis stop loss is required' })
+      return
+    }
+
+    if (error?.code === 'INVALID_ANALYSIS_SUMMARY') {
+      res.status(400).json({ error: 'Analysis summary is required' })
+      return
+    }
+
+    console.error('Failed to update analysis:', error)
+    res.status(500).json({
+      error: 'Failed to update analysis',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.delete('/api/positions/:id/analysis', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing position id' })
+    return
+  }
+
+  try {
+    const position = await deletePositionAnalysis(id)
+    if (!position) {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+    res.json({ data: position })
+  } catch (error) {
+    if (error?.code === 'POSITION_NOT_FOUND') {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+
+    console.error('Failed to delete analysis:', error)
+    res.status(500).json({
+      error: 'Failed to delete analysis',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.delete('/api/positions/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing position id' })
+    return
+  }
+
+  try {
+    const result = await deletePosition(id)
+    res.json({ success: true, data: result })
+  } catch (error) {
+    if (error?.code === 'POSITION_NOT_FOUND') {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+
+    console.error('Failed to delete position:', error)
+    res.status(500).json({
+      error: 'Failed to delete position',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.patch('/api/positions/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing position id' })
+    return
+  }
+
+  const { quoteSymbol } = req.body ?? {}
+
+  try {
+    const position = await updatePositionQuoteSymbol(id, quoteSymbol)
+    if (!position) {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+    res.json({ data: position })
+  } catch (error) {
+    if (error?.code === 'POSITION_NOT_FOUND') {
+      res.status(404).json({ error: 'Position not found' })
+      return
+    }
+
+    console.error('Failed to update position metadata:', error)
+    res.status(500).json({
+      error: 'Failed to update position metadata',
       details: error instanceof Error ? error.message : String(error),
     })
   }
