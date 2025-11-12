@@ -25,6 +25,14 @@ const defaultState: AdminState = {
   statusUpdates: clone(initialStatusUpdates),
 }
 
+const DEFAULT_QUOTE_SYMBOLS: Record<string, string> = {
+  soxx: 'NASDAQ:SOXX',
+  msft: 'NASDAQ:MSFT',
+  dax: 'INDEX:DAX',
+  gold: 'TVC:GOLD',
+  cash: 'OANDA:USDCAD',
+}
+
 const SAMPLE_STATUS_UPDATE_IDS = new Set([
   'release-1',
   'roadmap-1',
@@ -97,15 +105,56 @@ function normalizeQuoteSymbol(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined
   }
-  const trimmed = value.trim()
+  const trimmed = value.trim().toUpperCase()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function resolveQuoteSymbol(position: Position, incoming?: unknown): string | undefined {
+  const normalizedIncoming = normalizeQuoteSymbol(incoming)
+  if (normalizedIncoming) {
+    return normalizedIncoming
+  }
+
+  const idCandidate = DEFAULT_QUOTE_SYMBOLS[position.id?.toLowerCase() ?? '']
+  if (idCandidate) {
+    return idCandidate
+  }
+
+  const symbolCandidate = DEFAULT_QUOTE_SYMBOLS[position.symbol?.toLowerCase() ?? '']
+  if (symbolCandidate) {
+    return symbolCandidate
+  }
+
+  const rawSymbol = position.symbol?.trim()
+  if (!rawSymbol) {
+    return undefined
+  }
+
+  if (rawSymbol.includes(':')) {
+    return rawSymbol.toUpperCase()
+  }
+
+  const upper = rawSymbol.toUpperCase()
+
+  switch (position.category) {
+    case 'stock':
+      return `NASDAQ:${upper}`
+    case 'commodity':
+      return `TVC:${upper}`
+    case 'hedge':
+      return `INDEX:${upper}`
+    case 'cash':
+      return `FX:${upper}`
+    default:
+      return undefined
+  }
 }
 
 function migratePositions(source: Position[]): Position[] {
   return source.map(position => ({
     ...position,
     positionType: position.positionType ?? 'long',
-    quoteSymbol: normalizeQuoteSymbol((position as Position & { quoteSymbol?: unknown }).quoteSymbol),
+    quoteSymbol: resolveQuoteSymbol(position, (position as Position & { quoteSymbol?: unknown }).quoteSymbol),
   }))
 }
 
@@ -390,7 +439,7 @@ export function addPosition(payload: NewPositionPayload) {
     next.positions = next.positions.filter(position => position.id !== payload.position.id)
     next.positions.push({
       ...payload.position,
-      quoteSymbol: normalizeQuoteSymbol(payload.position.quoteSymbol),
+      quoteSymbol: resolveQuoteSymbol(payload.position, payload.position.quoteSymbol),
     })
     next.technicalAnalysis[payload.position.id] = payload.analysis
 
