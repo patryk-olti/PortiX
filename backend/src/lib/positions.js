@@ -24,8 +24,8 @@ const DEFAULT_QUOTE_SYMBOLS = {
   dax: 'INDEX:DEU40',
   gold: 'TVC:GOLD',
   cash: 'OANDA:USDCAD',
-  wticousd: 'TVC:USOIL',
-  'wticousd(2)': 'TVC:USOIL',
+  wticousd: 'NYMEX:CL1!',
+  'wticousd(2)': 'NYMEX:CL1!',
   btc: 'BINANCE:BTCUSDT',
   eth: 'BINANCE:ETHUSDT',
   btcusdt: 'BINANCE:BTCUSDT',
@@ -41,7 +41,7 @@ const QUOTES_CONFIG = {
 }
 
 const ALPHA_FALLBACK_SYMBOLS = {
-  'CL=F': 'TVC:USOIL',
+  'CL=F': 'NYMEX:CL1!',
 }
 
 const CATEGORY_LABELS = {

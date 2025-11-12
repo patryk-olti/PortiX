@@ -36,11 +36,8 @@ function normalizeSymbols(input) {
   return result
 }
 
-function derivePrice(close, pricescale) {
+function derivePrice(close) {
   if (typeof close === 'number') {
-    if (typeof pricescale === 'number' && pricescale > 0) {
-      return close / pricescale
-    }
     return close
   }
   return null
