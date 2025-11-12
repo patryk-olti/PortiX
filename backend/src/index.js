@@ -2,7 +2,13 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { pool } = require('./lib/db')
-const { ensureNewsTable } = require('./lib/schema')
+const { ensureSchema } = require('./lib/schema')
+const {
+  createPosition,
+  listPositions,
+  POSITION_CATEGORY_VALUES,
+  POSITION_TYPE_VALUES,
+} = require('./lib/positions')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
 
 const app = express()
@@ -66,6 +72,65 @@ app.get('/health', async (_req, res) => {
         message: error instanceof Error ? error.message : String(error),
         fields: errorDetails,
       },
+    })
+  }
+})
+
+app.get('/api/positions', async (_req, res) => {
+  try {
+    const data = await listPositions()
+    res.json({ data })
+  } catch (error) {
+    console.error('Failed to fetch positions:', error)
+    res.status(500).json({
+      error: 'Failed to fetch positions',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/positions', async (req, res) => {
+  const payload = req.body ?? {}
+
+  try {
+    const position = await createPosition(payload)
+    res.status(201).json({ data: position })
+  } catch (error) {
+    if (error?.code === 'INVALID_SYMBOL') {
+      res.status(400).json({ error: 'Symbol is required' })
+      return
+    }
+
+    if (error?.code === 'INVALID_PURCHASE_PRICE') {
+      res.status(400).json({ error: 'Purchase price is required' })
+      return
+    }
+
+    if (error?.code === 'INVALID_CATEGORY') {
+      res.status(400).json({
+        error: 'Invalid category value',
+        allowed: POSITION_CATEGORY_VALUES,
+      })
+      return
+    }
+
+    if (error?.code === 'INVALID_POSITION_TYPE') {
+      res.status(400).json({
+        error: 'Invalid position type value',
+        allowed: POSITION_TYPE_VALUES,
+      })
+      return
+    }
+
+    if (error?.code === 'POSITION_EXISTS') {
+      res.status(409).json({ error: 'Position with this symbol already exists' })
+      return
+    }
+
+    console.error('Failed to create position:', error)
+    res.status(500).json({
+      error: 'Failed to create position',
+      details: error instanceof Error ? error.message : String(error),
     })
   }
 })
@@ -180,7 +245,7 @@ app.delete('/api/news/:id', async (req, res) => {
   }
 })
 
-ensureNewsTable()
+ensureSchema()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`PortiX backend listening on port ${PORT}`)
