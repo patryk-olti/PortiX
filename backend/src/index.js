@@ -465,16 +465,22 @@ app.patch('/api/positions/:id', async (req, res) => {
   }
 })
 
-ensureSchema()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`PortiX backend listening on port ${PORT}`)
+const isTestEnv = process.env.NODE_ENV === 'test'
+
+if (!isTestEnv) {
+  ensureSchema()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`PortiX backend listening on port ${PORT}`)
+      })
     })
-  })
-  .catch(error => {
-    console.error('Failed to initialize database schema:', error)
-    process.exit(1)
-  })
+    .catch(error => {
+      console.error('Failed to initialize database schema:', error)
+      process.exit(1)
+    })
+}
+
+app.ensureSchema = ensureSchema
 
 module.exports = app
 

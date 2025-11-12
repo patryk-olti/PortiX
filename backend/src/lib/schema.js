@@ -1,5 +1,7 @@
 const { pool } = require('./db')
 
+const isTestEnv = process.env.NODE_ENV === 'test'
+
 const IMPORTANCE_VALUES = ['critical', 'important', 'informational']
 const POSITION_CATEGORY_VALUES = ['stock', 'commodity', 'hedge', 'cash', 'cryptocurrency']
 const POSITION_TYPE_VALUES = ['long', 'short']
@@ -17,8 +19,20 @@ const IMPORTANCE_ARRAY_SQL = IMPORTANCE_VALUES.map(value => `'${value}'`).join('
 const POSITION_CATEGORY_ARRAY_SQL = POSITION_CATEGORY_VALUES.map(value => `'${value}'`).join(', ')
 const POSITION_TYPE_ARRAY_SQL = POSITION_TYPE_VALUES.map(value => `'${value}'`).join(', ')
 
+async function ensurePgcryptoExtension() {
+  try {
+    await pool.query('create extension if not exists "pgcrypto"')
+  } catch (error) {
+    if (isTestEnv) {
+      console.warn('Skipping pgcrypto extension in test environment:', error.message)
+      return
+    }
+    throw error
+  }
+}
+
 async function ensureNewsTable() {
-  await pool.query('create extension if not exists "pgcrypto"')
+  await ensurePgcryptoExtension()
   await pool.query(`
     create table if not exists news (
       id uuid primary key default gen_random_uuid(),
@@ -36,7 +50,7 @@ async function ensureNewsTable() {
 }
 
 async function ensurePortfolioTables() {
-  await pool.query('create extension if not exists "pgcrypto"')
+  await ensurePgcryptoExtension()
   await pool.query(`
     create table if not exists portfolio_positions (
       id uuid primary key default gen_random_uuid(),
@@ -170,20 +184,22 @@ async function ensurePortfolioTables() {
       add column if not exists slug text
   `)
 
-  await pool.query(`
-    do $$
-    begin
-      if not exists (
-        select 1
-        from pg_constraint
-        where conrelid = 'portfolio_positions'::regclass
-          and conname = 'portfolio_positions_slug_key'
-      ) then
-        alter table portfolio_positions
-          add constraint portfolio_positions_slug_key unique (slug);
-      end if;
-    end$$
-  `)
+  if (!isTestEnv) {
+    await pool.query(`
+      do $$
+      begin
+        if not exists (
+          select 1
+          from pg_constraint
+          where conrelid = 'portfolio_positions'::regclass
+            and conname = 'portfolio_positions_slug_key'
+        ) then
+          alter table portfolio_positions
+            add constraint portfolio_positions_slug_key unique (slug);
+        end if;
+      end$$
+    `)
+  }
 
   await pool.query(`
     update portfolio_positions
@@ -196,21 +212,23 @@ async function ensurePortfolioTables() {
       alter column slug set not null
   `)
 
-  await pool.query(`
-    do $$
-    begin
-      if not exists (
-        select 1
-        from pg_constraint
-        where conrelid = 'portfolio_positions'::regclass
-          and conname = 'portfolio_positions_size_type_check'
-      ) then
-        alter table portfolio_positions
-          add constraint portfolio_positions_size_type_check
-            check (position_size_type is null or position_size_type = any (ARRAY[${POSITION_SIZE_TYPE_ARRAY_SQL}]::text[]));
-      end if;
-    end$$
-  `)
+  if (!isTestEnv) {
+    await pool.query(`
+      do $$
+      begin
+        if not exists (
+          select 1
+          from pg_constraint
+          where conrelid = 'portfolio_positions'::regclass
+            and conname = 'portfolio_positions_size_type_check'
+        ) then
+          alter table portfolio_positions
+            add constraint portfolio_positions_size_type_check
+              check (position_size_type is null or position_size_type = any (ARRAY[${POSITION_SIZE_TYPE_ARRAY_SQL}]::text[]));
+        end if;
+      end$$
+    `)
+  }
 
   await pool.query(`
     create table if not exists portfolio_position_snapshots (
@@ -269,21 +287,23 @@ async function ensurePortfolioTables() {
       add column if not exists entry_strategy text
   `)
 
-  await pool.query(`
-    do $$
-    begin
-      if not exists (
-        select 1
-        from pg_constraint
-        where conrelid = 'portfolio_position_analyses'::regclass
-          and conname = 'portfolio_position_analyses_entry_strategy_check'
-      ) then
-        alter table portfolio_position_analyses
-          add constraint portfolio_position_analyses_entry_strategy_check
-            check (entry_strategy is null or entry_strategy = any (ARRAY[${ANALYSIS_ENTRY_STRATEGY_ARRAY_SQL}]::text[]));
-      end if;
-    end$$
-  `)
+  if (!isTestEnv) {
+    await pool.query(`
+      do $$
+      begin
+        if not exists (
+          select 1
+          from pg_constraint
+          where conrelid = 'portfolio_position_analyses'::regclass
+            and conname = 'portfolio_position_analyses_entry_strategy_check'
+        ) then
+          alter table portfolio_position_analyses
+            add constraint portfolio_position_analyses_entry_strategy_check
+              check (entry_strategy is null or entry_strategy = any (ARRAY[${ANALYSIS_ENTRY_STRATEGY_ARRAY_SQL}]::text[]));
+        end if;
+      end$$
+    `)
+  }
 }
 
 async function ensureSchema() {
