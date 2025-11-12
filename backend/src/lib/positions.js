@@ -33,7 +33,17 @@ function normalizeQuoteInput(value) {
     return undefined
   }
   const trimmed = value.trim().toUpperCase()
-  return trimmed.length > 0 ? trimmed : undefined
+  if (!trimmed) {
+    return undefined
+  }
+  if (trimmed.includes(':')) {
+    return trimmed
+  }
+  const lower = trimmed.toLowerCase()
+  if (DEFAULT_QUOTE_SYMBOLS[lower]) {
+    return DEFAULT_QUOTE_SYMBOLS[lower]
+  }
+  return undefined
 }
 
 function getDefaultQuoteSymbol(symbol, category) {
