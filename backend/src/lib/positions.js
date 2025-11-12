@@ -1,6 +1,8 @@
 const { pool } = require('./db')
 const { POSITION_CATEGORY_VALUES, POSITION_TYPE_VALUES } = require('./schema')
 const { fetchTradingViewQuotes } = require('./tradingview')
+const { fetchCoinPrices } = require('./providers/coingecko')
+const { fetchGlobalQuote } = require('./providers/alphaVantage')
 
 const CATEGORY_SET = new Set(POSITION_CATEGORY_VALUES)
 const POSITION_TYPE_SET = new Set(POSITION_TYPE_VALUES)
@@ -15,6 +17,16 @@ const DEFAULT_QUOTE_SYMBOLS = {
   'wticousd(2)': 'TVC:USOIL',
   btc: 'BINANCE:BTCUSDT',
   eth: 'BINANCE:ETHUSDT',
+  btcusdt: 'BINANCE:BTCUSDT',
+  ethusdt: 'BINANCE:ETHUSDT',
+}
+
+const QUOTES_CONFIG = {
+  'BINANCE:BTCUSDT': { provider: 'coingecko', coinId: 'bitcoin', vsCurrency: 'usd', targetCurrency: 'USDT' },
+  'BINANCE:ETHUSDT': { provider: 'coingecko', coinId: 'ethereum', vsCurrency: 'usd', targetCurrency: 'USDT' },
+  'TVC:USOIL': { provider: 'alphaVantage', symbol: 'CL=F', currency: 'USD' },
+  'NASDAQ:MSFT': { provider: 'alphaVantage', symbol: 'MSFT', currency: 'USD' },
+  'NASDAQ:SOXX': { provider: 'alphaVantage', symbol: 'SOXX', currency: 'USD' },
 }
 
 const CATEGORY_LABELS = {
@@ -354,135 +366,237 @@ async function listPositions() {
   )
 
   const positions = result.rows.map(mapRowToPosition)
-  const symbolsToFetch = Array.from(
-    new Set(
-      positions
-        .map(position => position.quoteSymbol)
-        .filter(symbol => typeof symbol === 'string' && symbol.trim().length > 0),
-    ),
-  )
+  const updates = await fetchQuoteUpdates(positions)
 
-  if (!symbolsToFetch.length) {
+  if (!updates.size) {
     return positions
   }
 
-  try {
-    const quotes = await fetchTradingViewQuotes(symbolsToFetch)
-    const quoteBySymbol = new Map(quotes.map(quote => [quote.symbol, quote]))
+  const updatedPositions = applyQuoteUpdates(positions, updates)
+  await persistQuoteUpdates(updatedPositions, positions)
 
-    const updatedPositions = positions.map(position => {
-      const quote = quoteBySymbol.get(position.quoteSymbol)
-      if (!quote || typeof quote.price !== 'number' || !Number.isFinite(quote.price)) {
-        return position
-      }
+  return updatedPositions
+}
 
-      const currentPriceCurrency = quote.currency ?? position.currentPriceCurrency ?? null
-      const currentPriceValue = quote.price
-      const currentPrice = formatPriceLabel(currentPriceValue, currentPriceCurrency)
+async function fetchQuoteUpdates(positions) {
+  const updates = new Map()
 
-      const purchaseValue = parseReturnValue(position.purchasePrice)
-      const returnValue =
-        typeof purchaseValue === 'number' && purchaseValue !== 0
-          ? ((currentPriceValue - purchaseValue) / purchaseValue) * 100
-          : position.returnValue
+  const coingeckoItems = []
+  const alphaItems = []
+  const tradingViewSymbols = new Map()
 
-      const normalizedReturnValue = Number.isFinite(returnValue) ? returnValue : position.returnValue
-
-      return {
-        ...position,
-        currentPrice: currentPrice ?? position.currentPrice,
-        currentPriceValue,
-        currentPriceCurrency,
-        returnValue: normalizedReturnValue,
-        return: formatReturnLabel(normalizedReturnValue),
-      }
-    })
-
-    const updates = updatedPositions
-      .map(position => {
-        const original = positions.find(item => item.id === position.id)
-        if (!original) {
-          return null
-        }
-
-        if (
-          original.currentPriceValue === position.currentPriceValue &&
-          original.returnValue === position.returnValue &&
-          original.currentPriceCurrency === position.currentPriceCurrency
-        ) {
-          return null
-        }
-
-        return {
-          id: position.id,
-          priceValue: position.currentPriceValue,
-          priceCurrency: position.currentPriceCurrency,
-          priceLabel: position.currentPrice,
-          returnValue: position.returnValue,
-          returnLabel: position.return,
-        }
-      })
-      .filter(item => item !== null)
-
-    if (updates.length) {
-      await pool.query('BEGIN')
-      try {
-        for (const update of updates) {
-          await pool.query(
-            `
-              insert into portfolio_position_snapshots (
-                position_id,
-                current_price_value,
-                current_price_currency,
-                current_price_label,
-                return_value,
-                return_label
-              )
-              values ($1, $2, $3, $4, $5, $6)
-            `,
-            [
-              update.id,
-              update.priceValue,
-              update.priceCurrency,
-              update.priceLabel,
-              update.returnValue,
-              update.returnLabel,
-            ],
-          )
-
-          await pool.query(
-            `
-              update portfolio_positions
-              set
-                latest_price_value = $2,
-                latest_price_currency = $3,
-                latest_price_label = $4,
-                latest_return_value = $5,
-                latest_return_label = $6,
-                latest_price_updated_at = now()
-              where id = $1
-            `,
-            [
-              update.id,
-              update.priceValue,
-              update.priceCurrency,
-              update.priceLabel,
-              update.returnValue,
-              update.returnLabel,
-            ],
-          )
-        }
-        await pool.query('COMMIT')
-      } catch (updateError) {
-        await pool.query('ROLLBACK')
-        console.error('Failed to persist TradingView quotes:', updateError)
-      }
+  positions.forEach(position => {
+    if (!position.quoteSymbol) {
+      return
     }
 
-    return updatedPositions
+    const config = QUOTES_CONFIG[position.quoteSymbol]
+    if (config) {
+      if (config.provider === 'coingecko') {
+        coingeckoItems.push({ position, config })
+      } else if (config.provider === 'alphaVantage') {
+        alphaItems.push({ position, config })
+      }
+      return
+    }
+
+    if (!tradingViewSymbols.has(position.quoteSymbol)) {
+      tradingViewSymbols.set(position.quoteSymbol, [])
+    }
+    tradingViewSymbols.get(position.quoteSymbol).push(position)
+  })
+
+  if (coingeckoItems.length) {
+    const groupedByCurrency = new Map()
+    coingeckoItems.forEach(item => {
+      const vsCurrency = item.config.vsCurrency ?? 'usd'
+      if (!groupedByCurrency.has(vsCurrency)) {
+        groupedByCurrency.set(vsCurrency, [])
+      }
+      groupedByCurrency.get(vsCurrency).push(item)
+    })
+
+    for (const [vsCurrency, items] of groupedByCurrency.entries()) {
+      try {
+        const ids = Array.from(new Set(items.map(item => item.config.coinId)))
+        const prices = await fetchCoinPrices(ids, vsCurrency)
+
+        items.forEach(item => {
+          const raw = prices?.[item.config.coinId]?.[vsCurrency]
+          if (typeof raw === 'number' && Number.isFinite(raw)) {
+            updates.set(item.position.id, {
+              priceValue: raw,
+              priceCurrency: (item.config.targetCurrency ?? vsCurrency).toUpperCase(),
+            })
+          }
+        })
+      } catch (error) {
+        console.error('Failed to fetch CoinGecko prices:', error)
+      }
+    }
+  }
+
+  if (alphaItems.length) {
+    const apiKey = process.env.ALPHA_VANTAGE_API_KEY
+    if (!apiKey) {
+      console.warn('ALPHA_VANTAGE_API_KEY is not set, skipping Alpha Vantage quotes')
+    } else {
+      for (const item of alphaItems) {
+        try {
+          const quote = await fetchGlobalQuote(item.config.symbol, apiKey)
+          if (quote) {
+            const price = Number.parseFloat(quote['05. price'])
+            if (Number.isFinite(price)) {
+              updates.set(item.position.id, {
+                priceValue: price,
+                priceCurrency: item.config.currency ?? 'USD',
+              })
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch Alpha Vantage quote for ${item.config.symbol}:`, error)
+        }
+      }
+    }
+  }
+
+  if (tradingViewSymbols.size) {
+    try {
+      const quotes = await fetchTradingViewQuotes(Array.from(tradingViewSymbols.keys()))
+      quotes.forEach(quote => {
+        if (!quote || typeof quote.price !== 'number' || !Number.isFinite(quote.price)) {
+          return
+        }
+        const positionsForSymbol = tradingViewSymbols.get(quote.symbol)
+        if (!positionsForSymbol?.length) {
+          return
+        }
+        positionsForSymbol.forEach(position => {
+          updates.set(position.id, {
+            priceValue: quote.price,
+            priceCurrency: quote.currency ?? position.currentPriceCurrency ?? null,
+          })
+        })
+      })
+    } catch (error) {
+      console.error('Failed to fetch TradingView quotes in listPositions:', error)
+    }
+  }
+
+  return updates
+}
+
+function applyQuoteUpdates(positions, updates) {
+  return positions.map(position => {
+    const update = updates.get(position.id)
+    if (!update) {
+      return position
+    }
+
+    const currentPriceCurrency = update.priceCurrency ?? position.currentPriceCurrency ?? null
+    const currentPriceValue = update.priceValue
+    const currentPrice =
+      update.priceLabel ?? formatPriceLabel(currentPriceValue, currentPriceCurrency) ?? position.currentPrice
+
+    const purchaseValue = parsePriceValue(position.purchasePrice)
+    const returnValue =
+      typeof purchaseValue === 'number' && purchaseValue !== 0
+        ? ((currentPriceValue - purchaseValue) / purchaseValue) * 100
+        : position.returnValue
+
+    const normalizedReturnValue = Number.isFinite(returnValue) ? returnValue : position.returnValue
+
+    return {
+      ...position,
+      currentPrice,
+      currentPriceValue,
+      currentPriceCurrency,
+      returnValue: normalizedReturnValue,
+      return: formatReturnLabel(normalizedReturnValue),
+    }
+  })
+}
+
+async function persistQuoteUpdates(updatedPositions, originalPositions) {
+  const updates = updatedPositions
+    .map(position => {
+      const original = originalPositions.find(item => item.id === position.id)
+      if (!original) {
+        return null
+      }
+      if (
+        original.currentPriceValue === position.currentPriceValue &&
+        original.returnValue === position.returnValue &&
+        original.currentPriceCurrency === position.currentPriceCurrency
+      ) {
+        return null
+      }
+      return {
+        id: position.id,
+        priceValue: position.currentPriceValue,
+        priceCurrency: position.currentPriceCurrency,
+        priceLabel: position.currentPrice,
+        returnValue: position.returnValue,
+        returnLabel: position.return,
+      }
+    })
+    .filter(item => item !== null)
+
+  if (!updates.length) {
+    return
+  }
+
+  await pool.query('BEGIN')
+  try {
+    for (const update of updates) {
+      await pool.query(
+        `
+          insert into portfolio_position_snapshots (
+            position_id,
+            current_price_value,
+            current_price_currency,
+            current_price_label,
+            return_value,
+            return_label
+          )
+          values ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+          update.id,
+          update.priceValue,
+          update.priceCurrency,
+          update.priceLabel,
+          update.returnValue,
+          update.returnLabel,
+        ],
+      )
+
+      await pool.query(
+        `
+          update portfolio_positions
+          set
+            latest_price_value = $2,
+            latest_price_currency = $3,
+            latest_price_label = $4,
+            latest_return_value = $5,
+            latest_return_label = $6,
+            latest_price_updated_at = now()
+          where id = $1
+        `,
+        [
+          update.id,
+          update.priceValue,
+          update.priceCurrency,
+          update.priceLabel,
+          update.returnValue,
+          update.returnLabel,
+        ],
+      )
+    }
+    await pool.query('COMMIT')
   } catch (error) {
-    console.error('Failed to fetch TradingView quotes in listPositions:', error)
-    return positions
+    await pool.query('ROLLBACK')
+    console.error('Failed to persist quotes:', error)
   }
 }
 
