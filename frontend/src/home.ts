@@ -20,12 +20,13 @@ function renderPlaceholderRows(count: number): string {
 
 export function renderHome(): string {
   const positions = getPositions()
+  const placeholderCount = Math.max(0, 5 - positions.length)
   return `
     <main class="page">
       <section class="hero">
         <h1 class="app-name">
-          <span class="app-name-primary">PortiX</span>
-          <span class="app-name-secondary">Analytics</span>
+          <span class="app-name-primary">Panel</span>
+          <span class="app-name-secondary">Analityczny</span>
         </h1>
         <p class="hero-subtitle">Techniczne spojrzenie na rynek</p>
         <p class="lede">
@@ -41,7 +42,7 @@ export function renderHome(): string {
 
       <section class="portfolio">
         <div class="section-header">
-          <h2>Stan portfela PortiX</h2>
+          <h2>Stan portfela</h2>
         </div>
         <div class="portfolio-overview">
           <article class="metric">
@@ -72,7 +73,7 @@ export function renderHome(): string {
           </select>
         </div>
         <div class="portfolio-table-wrapper">
-          <table class="portfolio-table" aria-describedby="category-filter">
+          <table class="portfolio-table${positions.length ? '' : ' empty-state'}" aria-describedby="category-filter">
             <thead>
               <tr>
                 <th>Pozycja</th>
@@ -117,8 +118,9 @@ export function renderHome(): string {
               `,
                       )
                       .join('')
-                  : renderPlaceholderRows(5)
+                  : ''
               }
+              ${placeholderCount ? renderPlaceholderRows(placeholderCount) : ''}
             </tbody>
           </table>
         </div>

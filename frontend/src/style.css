@@ -181,12 +181,15 @@ a {
 }
 
 .portfolio-table-wrapper {
+  --portfolio-table-min-rows: 5;
+
   overflow-x: auto;
-  max-height: 260px;
   overflow-y: auto;
   border-radius: 18px;
   border: 1px solid rgb(148 163 184 / 0.12);
   background: var(--surface-soft);
+  min-height: calc(var(--portfolio-table-min-rows) * 4.2rem + 3.25rem);
+  max-height: 540px;
 }
 
 .portfolio-table {
@@ -221,7 +224,7 @@ a {
 
 .portfolio-table tbody tr.placeholder td {
   border-bottom: none;
-  padding: 1.35rem 1.5rem;
+  padding: 1.6rem 1.5rem;
 }
 
 .placeholder-content {
