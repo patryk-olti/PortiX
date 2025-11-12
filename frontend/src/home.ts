@@ -1,26 +1,100 @@
 import { getPositions } from './store'
 
-function renderPlaceholderRows(count: number): string {
-  return Array.from({ length: count })
-    .map(
-      () => `
-        <tr class="placeholder">
-          <td colspan="7">
-            <div class="placeholder-content">
-              <div class="placeholder-line short"></div>
-              <div class="placeholder-line medium"></div>
-              <div class="placeholder-line long"></div>
-            </div>
-          </td>
-        </tr>
-      `,
-    )
-    .join('')
+type MonetaryEntry = {
+  value?: number | null
+  currency?: string | null
+}
+
+function aggregateMonetaryValue(
+  entries: MonetaryEntry[],
+  fallbackCurrency: string | null = 'PLN',
+): { value: number | null; label: string } {
+  const normalized = entries
+    .map(entry => {
+      if (!entry || typeof entry.value !== 'number' || Number.isNaN(entry.value)) {
+        return null
+      }
+
+      return {
+        value: entry.value,
+        currency: entry.currency ?? fallbackCurrency,
+      }
+    })
+    .filter((entry): entry is { value: number; currency: string | null } => entry !== null)
+
+  if (!normalized.length) {
+    return { value: null, label: '—' }
+  }
+
+  const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
+  const [first] = normalized
+  const consistentCurrency =
+    first.currency && normalized.every(entry => entry.currency === first.currency) ? first.currency : null
+
+  if (consistentCurrency) {
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: consistentCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return { value: total, label: formatter.format(total) }
+  }
+
+  const numberFormatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return { value: total, label: numberFormatter.format(total) }
+}
+
+function formatActivePositionsLabel(count: number): string {
+  if (count === 0) {
+    return 'Brak aktywnych pozycji'
+  }
+
+  if (count === 1) {
+    return '1 aktywna pozycja'
+  }
+
+  if (count >= 2 && count <= 4) {
+    return `${count} aktywne pozycje`
+  }
+
+  return `${count} aktywnych pozycji`
 }
 
 export function renderHome(): string {
   const positions = getPositions()
-  const placeholderCount = Math.max(0, 5 - positions.length)
+  const portfolioValueMetric = aggregateMonetaryValue(
+    positions.map(position => ({
+      value: position.positionTotalValue ?? null,
+      currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
+    })),
+  )
+  const investedCapitalMetric = aggregateMonetaryValue(
+    positions.map(position => {
+      if (position.positionSizeType === 'capital' && typeof position.positionSizeValue === 'number') {
+        return {
+          value: position.positionSizeValue,
+          currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null,
+        }
+      }
+
+      if (typeof position.positionTotalValue === 'number') {
+        return {
+          value: position.positionTotalValue,
+          currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
+        }
+      }
+
+      return { value: null, currency: null }
+    }),
+  )
+  const activePositionsLabel = formatActivePositionsLabel(positions.length)
+  const investedDescriptor =
+    investedCapitalMetric.value !== null ? 'Łączna ekspozycja kapitału' : 'Brak danych o kapitale'
+  const portfolioDescriptor = activePositionsLabel
   return `
     <main class="page">
       <section class="hero">
@@ -47,18 +121,13 @@ export function renderHome(): string {
         <div class="portfolio-overview">
           <article class="metric">
             <span class="label">Wartość portfela</span>
-            <span class="value">254 800 PLN</span>
-            <span class="change positive">+4.2% m/m</span>
+            <span class="value">${portfolioValueMetric.label}</span>
+            <span class="change neutral">${portfolioDescriptor}</span>
           </article>
           <article class="metric">
             <span class="label">Kapitał zainwestowany</span>
-            <span class="value">182 500 PLN</span>
-            <span class="change neutral">71% ekspozycji</span>
-          </article>
-          <article class="metric">
-            <span class="label">Kapitał rezerwowy</span>
-            <span class="value">72 300 PLN</span>
-            <span class="change neutral">29% gotówki</span>
+            <span class="value">${investedCapitalMetric.label}</span>
+            <span class="change neutral">${investedDescriptor}</span>
           </article>
         </div>
         <div class="portfolio-filters">
@@ -73,7 +142,7 @@ export function renderHome(): string {
           </select>
         </div>
         <div class="portfolio-table-wrapper">
-          <table class="portfolio-table${positions.length ? '' : ' empty-state'}" aria-describedby="category-filter">
+          <table class="portfolio-table" aria-describedby="category-filter">
             <thead>
               <tr>
                 <th>Pozycja</th>
@@ -87,10 +156,9 @@ export function renderHome(): string {
             </thead>
             <tbody>
               ${
-                positions.length
-                  ? positions
-                      .map(
-                        position => `
+                positions
+                  .map(
+                    position => `
                 <tr data-category="${position.category}">
                   <td>
                     <div class="portfolio-name">
@@ -116,11 +184,10 @@ export function renderHome(): string {
                   </td>
                 </tr>
               `,
-                      )
-                      .join('')
-                  : ''
+                  )
+                  .join('')
               }
-              ${placeholderCount ? renderPlaceholderRows(placeholderCount) : ''}
+              ${positions.length === 0 ? '<tr class="empty"><td colspan="7">Brak pozycji w portfelu</td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -128,7 +195,7 @@ export function renderHome(): string {
     </main>
 
     <footer class="footer">
-      <small>© ${new Date().getFullYear()} PortiX. Wszystkie prawa zastrzeżone.</small>
+      <small>© ${new Date().getFullYear()} Wszystkie prawa zastrzeżone.</small>
       <nav>
         <a href="#/status">Status projektu</a>
         <a href="#">Dokumentacja</a>
