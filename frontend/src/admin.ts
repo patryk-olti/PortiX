@@ -144,7 +144,7 @@ export function renderAdmin(): string {
             <fieldset class="admin-form-fieldset">
               <legend>Analiza techniczna</legend>
               <p class="fieldset-note">
-                Wprowadź trend, cele take-profit oraz poziom stop-loss. Opcjonalnie dodaj link do TradingView oraz zrzut ekranu analizy.
+                Wprowadź trend, cele take-profit oraz poziom stop-loss. Opcjonalnie dodaj zrzut ekranu analizy.
               </p>
               <div class="form-grid">
                 <label class="form-field">
@@ -170,10 +170,6 @@ export function renderAdmin(): string {
                 <label class="form-field">
                   <span>Stop loss (SL)</span>
                   <input type="text" name="stopLoss" required placeholder="np. 410 USD" />
-                </label>
-                <label class="form-field">
-                  <span>Link TradingView</span>
-                  <input type="url" name="tradingViewUrl" placeholder="https://www.tradingview.com/idea/..." />
                 </label>
                 <label class="form-field">
                   <span>Obraz analizy</span>
@@ -375,14 +371,6 @@ function setupCreatePositionForm() {
     const summary = (formData.get('summary') as string)?.trim()
     const analysisImageFile = formData.get('analysisImage') as File | null
     const positionType = (formData.get('positionType') as PositionTypeOption) ?? 'long'
-    const tradingViewUrl = (formData.get('tradingViewUrl') as string)?.trim()
-    const normalizedTradingViewUrl = normalizeTradingViewUrl(tradingViewUrl)
-
-    if (tradingViewUrl && !normalizedTradingViewUrl) {
-      alert('Podany link TradingView jest nieprawidłowy. Sprawdź adres URL.')
-      return
-    }
-
     if (!symbol || !purchasePrice || !stopLoss || !summary) {
       alert('Uzupełnij poprawnie wszystkie wymagane pola formularza.')
       return
@@ -415,7 +403,6 @@ function setupCreatePositionForm() {
       stopLoss,
       summary,
       analysisImage,
-      tradingViewUrl: normalizedTradingViewUrl,
     }
 
     try {
@@ -500,13 +487,6 @@ function bindAnalysisForm(form: HTMLFormElement) {
     const positionClosedDateInput = (formData.get('positionClosedDate') as string)?.trim() ?? ''
     const currentImageValue = (formData.get('currentImage') as string) || undefined
     const analysisImageFile = formData.get('analysisImage') as File | null
-    const tradingViewUrl = (formData.get('tradingViewUrl') as string)?.trim()
-    const normalizedTradingViewUrl = normalizeTradingViewUrl(tradingViewUrl)
-
-    if (tradingViewUrl && !normalizedTradingViewUrl) {
-      alert('Podany link TradingView jest nieprawidłowy. Sprawdź adres URL.')
-      return
-    }
 
     if (!summary || !stopLoss) {
       alert('Uzupełnij wymagane pola analizy.')
@@ -556,7 +536,6 @@ function bindAnalysisForm(form: HTMLFormElement) {
           ? existingAnalysis.completionDate
           : new Date().toISOString()
         : undefined,
-      tradingViewUrl: normalizedTradingViewUrl,
       positionClosed,
       positionClosedNote: positionClosed ? positionClosedNote : undefined,
       positionClosedDate: resolvedClosedDate,
@@ -925,10 +904,6 @@ function renderAnalysisForm(positionId: string): string {
           <input type="text" name="stopLoss" required value="${analysis.stopLoss ?? ''}" placeholder="np. 410 USD" />
         </label>
         <label class="form-field">
-          <span>Link TradingView</span>
-          <input type="url" name="tradingViewUrl" value="${analysis.tradingViewUrl ?? ''}" placeholder="https://www.tradingview.com/idea/..." />
-        </label>
-        <label class="form-field">
           <span>Obraz analizy</span>
           <input type="file" name="analysisImage" accept="image/*" />
           <input type="hidden" name="currentImage" value="${analysis.analysisImage ?? ''}" />
@@ -997,7 +972,6 @@ function createEmptyAnalysis(): TechnicalAnalysis {
     targets: {},
     stopLoss: '',
     summary: '',
-    tradingViewUrl: '',
     positionClosed: false,
   }
 }
@@ -1036,18 +1010,6 @@ function readFileAsDataURL(file: File): Promise<string> {
   })
 }
 
-function normalizeTradingViewUrl(value?: string | null): string | undefined {
-  if (!value) {
-    return undefined
-  }
-  try {
-    const url = new URL(value)
-    return url.toString()
-  } catch (_error) {
-    return undefined
-  }
-}
-
 function bindAnalysisPreview(form: HTMLFormElement) {
   const previewButton = form.querySelector<HTMLButtonElement>('.preview-analysis-button')
   previewButton?.addEventListener('click', async event => {
@@ -1073,8 +1035,6 @@ async function openAnalysisPreview(form: HTMLFormElement) {
   const tp1 = (formData.get('tp1') as string)?.trim()
   const tp2 = (formData.get('tp2') as string)?.trim()
   const tp3 = (formData.get('tp3') as string)?.trim()
-  const tradingViewValue = (formData.get('tradingViewUrl') as string)?.trim()
-  const normalizedTradingViewUrl = normalizeTradingViewUrl(tradingViewValue)
   const positionClosed = (formData.get('positionClosed') as string) === 'true'
   const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
   const positionClosedDateRaw = (formData.get('positionClosedDate') as string)?.trim() ?? ''
@@ -1099,7 +1059,6 @@ async function openAnalysisPreview(form: HTMLFormElement) {
     stopLoss: (formData.get('stopLoss') as string)?.trim(),
     summary: (formData.get('summary') as string)?.trim() ?? '',
     analysisImage,
-    tradingViewUrl: normalizedTradingViewUrl,
     completed: formData.get('completed') === 'on',
     completionNote: (formData.get('completionNote') as string)?.trim() || undefined,
     completionDate: undefined,
@@ -1110,15 +1069,11 @@ async function openAnalysisPreview(form: HTMLFormElement) {
       : undefined,
   }
 
-  const warning = tradingViewValue && !normalizedTradingViewUrl
-    ? 'Podany link TradingView jest nieprawidłowy. Link nie zostanie wyświetlony w podglądzie.'
-    : undefined
-
   document.querySelectorAll('.analysis-preview-overlay').forEach(node => node.remove())
 
   const overlay = document.createElement('div')
   overlay.className = 'analysis-preview-overlay'
-  overlay.innerHTML = buildAnalysisPreviewHtml(position, analysis, { warning })
+  overlay.innerHTML = buildAnalysisPreviewHtml(position, analysis)
   overlay.addEventListener('click', event => {
     if (event.target instanceof HTMLElement && (event.target.classList.contains('close-preview') || event.target === overlay)) {
       overlay.remove()
@@ -1131,7 +1086,6 @@ async function openAnalysisPreview(form: HTMLFormElement) {
 function buildAnalysisPreviewHtml(
   position: Position,
   analysis: TechnicalAnalysis,
-  options: { warning?: string } = {},
 ): string {
   const trendClass = analysis.trend === 'bullish' ? 'positive' : analysis.trend === 'bearish' ? 'negative' : 'neutral'
   const trendLabel = getTrendLabel(analysis.trend ?? 'neutral')
@@ -1161,11 +1115,6 @@ function buildAnalysisPreviewHtml(
         </div>
       </header>
       <div class="analysis-preview-body">
-        ${
-          options.warning
-            ? `<p class="preview-warning">${options.warning}</p>`
-            : ''
-        }
         <section class="preview-section">
           <h3>Analiza techniczna</h3>
           <div class="preview-grid">
@@ -1199,17 +1148,6 @@ function buildAnalysisPreviewHtml(
                 : ''
             }
           </div>
-          ${
-            analysis.tradingViewUrl
-              ? `<div class="preview-tradingview">
-                  <h4>TradingView</h4>
-                  <iframe src="${analysis.tradingViewUrl}" loading="lazy" title="Podgląd TradingView"></iframe>
-                  <a class="preview-link" href="${analysis.tradingViewUrl}" target="_blank" rel="noopener noreferrer">
-                    Otwórz analizę w nowej karcie
-                  </a>
-                </div>`
-              : ''
-          }
           ${
             analysis.analysisImage
               ? `<figure class="preview-figure">

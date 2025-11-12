@@ -129,7 +129,6 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           stopLoss: value.stopLoss ?? '',
           summary: value.summary ?? '',
           analysisImage: value.analysisImage,
-          tradingViewUrl: value.tradingViewUrl,
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,
@@ -151,7 +150,6 @@ function migrateTechnicalAnalyses(source: Record<string, TechnicalAnalysis | any
           summary:
             value.summary ??
             (value.indicators ? `RSI: ${value.indicators.rsi}, MACD: ${value.indicators.macd}` : ''),
-          tradingViewUrl: value.tradingViewUrl,
           completed: value.completed ?? false,
           completionNote: value.completionNote,
           completionDate: value.completionDate,

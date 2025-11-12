@@ -460,53 +460,6 @@ a {
   color: #f8fafc;
 }
 
-.chart-section {
-  background: var(--surface-strong);
-  border-radius: 24px;
-  padding: 2.5rem;
-  border: 1px solid rgb(148 163 184 / 0.2);
-  display: grid;
-  gap: 1.5rem;
-}
-
-.chart-container {
-  min-height: 500px;
-  border-radius: 18px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid rgb(148 163 184 / 0.12);
-}
-
-.tradingview-widget-container {
-  width: 100%;
-  height: 100%;
-  min-height: 500px;
-  position: relative;
-}
-
-.tradingview-widget-container__widget {
-  width: 100%;
-  height: 500px;
-}
-
-.tradingview-widget-copyright {
-  font-size: 13px;
-  line-height: 32px;
-  text-align: center;
-  vertical-align: middle;
-  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
-  color: #9db2bd;
-}
-
-.tradingview-widget-copyright a {
-  text-decoration: none;
-  color: #9db2bd;
-}
-
-.tradingview-widget-copyright .blue-text {
-  color: #2962FF;
-}
-
 .technical-analysis-section {
   background: var(--surface-strong);
   border-radius: 24px;
@@ -563,53 +516,6 @@ a {
   margin: 0;
   color: rgb(226 232 240 / 0.82);
   line-height: 1.7;
-}
-
-.analysis-tradingview {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: var(--surface);
-  border-radius: 18px;
-  border: 1px solid rgb(148 163 184 / 0.15);
-  display: grid;
-  gap: 1rem;
-}
-
-.analysis-tradingview h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
-.analysis-tradingview iframe {
-  width: 100%;
-  min-height: 360px;
-  border: none;
-  border-radius: 12px;
-  background: #0b1120;
-}
-
-.tradingview-link,
-.preview-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--accent);
-  border: 1px solid rgb(96 165 250 / 0.35);
-  width: fit-content;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-}
-
-.tradingview-link:hover,
-.preview-link:hover {
-  background: rgb(96 165 250 / 0.12);
-  color: var(--accent-strong);
-  border-color: rgb(96 165 250 / 0.55);
 }
 
 .analysis-figure {
@@ -808,19 +714,10 @@ a {
   }
 
   .position-header,
-  .chart-section,
   .technical-analysis-section,
   .modifications-section,
   .insights-section {
     padding: 1.5rem;
-  }
-
-  .chart-container {
-    min-height: 400px;
-  }
-
-  .tradingview-widget-container {
-    min-height: 400px;
   }
 
   .analysis-grid {
@@ -1708,30 +1605,6 @@ button.ghost:hover {
   margin: 0;
   color: rgb(226 232 240 / 0.82);
   line-height: 1.6;
-}
-
-.preview-tradingview {
-  background: var(--surface);
-  border-radius: 18px;
-  border: 1px solid rgb(148 163 184 / 0.12);
-  padding: 1.25rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.preview-tradingview h4 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
-.preview-tradingview iframe {
-  width: 100%;
-  min-height: 320px;
-  border: none;
-  border-radius: 12px;
-  background: #0b1120;
 }
 
 .preview-figure {

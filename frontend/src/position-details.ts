@@ -64,16 +64,6 @@ export function renderPositionDetails(positionId: string): string {
         </div>
       </section>
 
-      <section class="chart-section">
-        <div class="section-header">
-          <h2>Wykres cenowy</h2>
-          <p>Analiza techniczna w czasie rzeczywistym</p>
-        </div>
-        <div class="chart-container" id="tradingview-container-${position.id}" data-symbol="${getTradingViewSymbol(position.id)}">
-          <!-- TradingView widget will be inserted here -->
-        </div>
-      </section>
-
       <section class="technical-analysis-section">
         <div class="section-header">
           <h2>Analiza techniczna</h2>
@@ -97,17 +87,6 @@ export function renderPositionDetails(positionId: string): string {
           <p>${analysis?.summary || 'Brak dostępnej analizy technicznej.'}</p>
           ${analysis?.completed && analysis.completionNote ? `<p class="analysis-completion-note">Powód realizacji: ${analysis.completionNote}</p>` : ''}
         </div>
-        ${
-          analysis?.tradingViewUrl
-            ? `<div class="analysis-tradingview">
-                <h3>Analiza TradingView</h3>
-                <iframe src="${analysis.tradingViewUrl}" loading="lazy" title="Analiza TradingView ${position.symbol}"></iframe>
-                <a href="${analysis.tradingViewUrl}" class="tradingview-link" target="_blank" rel="noopener noreferrer">
-                  Otwórz pełną analizę w nowej karcie
-                </a>
-              </div>`
-            : ''
-        }
         ${
           analysis?.analysisImage
             ? `<figure class="analysis-figure">
@@ -189,17 +168,6 @@ function renderTargetCard(label: string, value?: string): string {
   `;
 }
 
-function getTradingViewSymbol(positionId: string): string {
-  const symbolMap: Record<string, string> = {
-    'soxx': 'NASDAQ:SOXX',
-    'msft': 'NASDAQ:MSFT',
-    'dax': 'DEU:DAX',
-    'gold': 'TVC:GOLD',
-    'cash': 'FX:USDCASH',
-  };
-  return symbolMap[positionId.toLowerCase()] || 'NASDAQ:SOXX';
-}
-
 function getModificationTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     'buy': 'Zakup',
@@ -228,66 +196,6 @@ function formatDate(dateString: string): string {
 }
 
 export function setupPositionDetailsHandlers(): void {
-  // Load TradingView widget using their embed method
-  const containers = document.querySelectorAll('.chart-container[data-symbol]');
-  
-  containers.forEach((container) => {
-    const symbol = container.getAttribute('data-symbol') || 'NASDAQ:SOXX';
-    
-    // Check if widget already loaded
-    if (container.querySelector('.tradingview-widget-container')) {
-      return;
-    }
-    
-    // Clear container first
-    container.innerHTML = '';
-    
-    // Create the widget HTML structure using DOM API
-    // TradingView expects: container > widget div > scripts (loader + config)
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container';
-    
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetContainer.appendChild(widgetDiv);
-    
-    const config = {
-      autosize: true,
-      symbol: symbol,
-      interval: 'D',
-      timezone: 'Europe/Warsaw',
-      theme: 'dark',
-      style: '1',
-      locale: 'pl',
-      backgroundColor: '#0b1120',
-      gridColor: 'rgba(148, 163, 184, 0.1)',
-      withdateranges: true,
-      range: '1M',
-      hide_side_toolbar: false,
-      allow_symbol_change: true,
-      save_image: false,
-      details: true,
-      hotlist: true,
-      calendar: false,
-      support_host: 'https://www.tradingview.com'
-    };
-    
-    // Create config script - must be before loader script
-    // TradingView reads config from script tag with JSON textContent
-    const configScript = document.createElement('script');
-    configScript.type = 'text/javascript';
-    configScript.textContent = JSON.stringify(config);
-    widgetContainer.appendChild(configScript);
-    
-    // Create the loader script
-    const loaderScript = document.createElement('script');
-    loaderScript.type = 'text/javascript';
-    loaderScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    loaderScript.async = true;
-    widgetContainer.appendChild(loaderScript);
-    
-    // Append widget container to our chart container
-    container.appendChild(widgetContainer);
-  });
+  // No dynamic handlers needed after removing TradingView embed
 }
 

@@ -21,7 +21,6 @@ export interface TechnicalAnalysis {
   stopLoss?: string;
   summary: string;
   analysisImage?: string;
-  tradingViewUrl?: string;
   completed?: boolean;
   completionNote?: string;
   completionDate?: string;
