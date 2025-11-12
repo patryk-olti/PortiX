@@ -38,6 +38,12 @@ async function ensurePortfolioTables() {
       category text not null check (category = any (ARRAY[${POSITION_CATEGORY_ARRAY_SQL}]::text[])),
       position_type text not null check (position_type = any (ARRAY[${POSITION_TYPE_ARRAY_SQL}]::text[])),
       purchase_price_label text not null,
+      latest_price_value numeric,
+      latest_price_currency text,
+      latest_price_label text,
+      latest_return_value numeric,
+      latest_return_label text,
+      latest_price_updated_at timestamptz,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     )
@@ -64,6 +70,36 @@ async function ensurePortfolioTables() {
       when lower(symbol) = 'cash' then 'OANDA:USDCAD'
       else quote_symbol
     end
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_price_value numeric
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_price_currency text
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_price_label text
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_return_value numeric
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_return_label text
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists latest_price_updated_at timestamptz
   `)
 
   await pool.query(`

@@ -90,6 +90,32 @@ function mapRowToPosition(row) {
   const category = row.category
   const returnValue = Number.isFinite(Number(row.return_value)) ? Number(row.return_value) : 0
 
+  const priceValue =
+    row.latest_price_value ??
+    row.current_price_value ??
+    parsePriceValue(row.latest_price_label ?? row.current_price_label)
+
+  const priceCurrency =
+    row.latest_price_currency ??
+    row.current_price_currency ??
+    inferCurrencyFromLabel(row.latest_price_label ?? row.current_price_label ?? row.purchase_price_label)
+
+  const priceLabel =
+    row.latest_price_label ??
+    row.current_price_label ??
+    formatPriceLabel(priceValue ?? parsePriceValue(row.purchase_price_label), priceCurrency) ??
+    row.purchase_price_label
+
+  const computedReturnValue =
+    row.latest_return_value ??
+    row.return_value ??
+    (Number.isFinite(Number(returnValue)) ? Number(returnValue) : 0)
+
+  const returnLabel =
+    row.latest_return_label ??
+    row.return_label ??
+    formatReturnLabel(Number.isFinite(Number(computedReturnValue)) ? Number(computedReturnValue) : returnValue)
+
   return {
     id: row.slug ?? row.id,
     symbol: row.symbol,
@@ -98,11 +124,12 @@ function mapRowToPosition(row) {
     category,
     categoryName: CATEGORY_LABELS[category] ?? category,
     purchasePrice: row.purchase_price_label,
-    currentPrice: row.current_price_label ?? row.purchase_price_label,
-    currentPriceValue: row.current_price_value ?? null,
-    currentPriceCurrency: row.current_price_currency ?? null,
-    return: row.return_label ?? formatReturnLabel(returnValue),
-    returnValue,
+    currentPrice: priceLabel,
+    currentPriceValue: typeof priceValue === 'number' ? priceValue : null,
+    currentPriceCurrency: priceCurrency ?? null,
+    return: returnLabel,
+    returnValue: Number.isFinite(Number(computedReturnValue)) ? Number(computedReturnValue) : 0,
+    latestPriceUpdatedAt: row.latest_price_updated_at,
     positionType: row.position_type,
   }
 }
@@ -185,15 +212,42 @@ async function createPosition(payload) {
       [position.id, initialPriceValue, initialCurrency, currentPriceLabel, normalizedReturnValue, returnLabel],
     )
 
+    const latestPriceLabel =
+      snapshotResult.rows[0].current_price_label ??
+      formatPriceLabel(snapshotResult.rows[0].current_price_value, snapshotResult.rows[0].current_price_currency) ??
+      currentPriceLabel
+
+    await client.query(
+      `
+        update portfolio_positions
+        set
+          latest_price_value = $2,
+          latest_price_currency = $3,
+          latest_price_label = $4,
+          latest_return_value = $5,
+          latest_return_label = $6,
+          latest_price_updated_at = now()
+        where id = $1
+      `,
+      [
+        position.id,
+        snapshotResult.rows[0].current_price_value,
+        snapshotResult.rows[0].current_price_currency,
+        latestPriceLabel,
+        snapshotResult.rows[0].return_value,
+        snapshotResult.rows[0].return_label,
+      ],
+    )
+
     await client.query('COMMIT')
 
     return mapRowToPosition({
       ...position,
-      current_price_value: snapshotResult.rows[0].current_price_value,
-      current_price_currency: snapshotResult.rows[0].current_price_currency,
-      current_price_label: snapshotResult.rows[0].current_price_label,
-      return_value: snapshotResult.rows[0].return_value,
-      return_label: snapshotResult.rows[0].return_label,
+      latest_price_value: snapshotResult.rows[0].current_price_value,
+      latest_price_currency: snapshotResult.rows[0].current_price_currency,
+      latest_price_label: latestPriceLabel,
+      latest_return_value: snapshotResult.rows[0].return_value,
+      latest_return_label: snapshotResult.rows[0].return_label,
     })
   } catch (error) {
     await client.query('ROLLBACK')
@@ -220,6 +274,12 @@ async function listPositions() {
         p.category,
         p.position_type,
         p.purchase_price_label,
+        p.latest_price_value,
+        p.latest_price_currency,
+        p.latest_price_label,
+        p.latest_return_value,
+        p.latest_return_label,
+        p.latest_price_updated_at,
         snapshot.current_price_value,
         snapshot.current_price_currency,
         snapshot.current_price_label,
@@ -259,7 +319,7 @@ async function listPositions() {
     const quotes = await fetchTradingViewQuotes(symbolsToFetch)
     const quoteBySymbol = new Map(quotes.map(quote => [quote.symbol, quote]))
 
-    return positions.map(position => {
+    const updatedPositions = positions.map(position => {
       const quote = quoteBySymbol.get(position.quoteSymbol)
       if (!quote || typeof quote.price !== 'number' || !Number.isFinite(quote.price)) {
         return position
@@ -286,6 +346,89 @@ async function listPositions() {
         return: formatReturnLabel(normalizedReturnValue),
       }
     })
+
+    const updates = updatedPositions
+      .map(position => {
+        const original = positions.find(item => item.id === position.id)
+        if (!original) {
+          return null
+        }
+
+        if (
+          original.currentPriceValue === position.currentPriceValue &&
+          original.returnValue === position.returnValue &&
+          original.currentPriceCurrency === position.currentPriceCurrency
+        ) {
+          return null
+        }
+
+        return {
+          id: position.id,
+          priceValue: position.currentPriceValue,
+          priceCurrency: position.currentPriceCurrency,
+          priceLabel: position.currentPrice,
+          returnValue: position.returnValue,
+          returnLabel: position.return,
+        }
+      })
+      .filter(item => item !== null)
+
+    if (updates.length) {
+      await pool.query('BEGIN')
+      try {
+        for (const update of updates) {
+          await pool.query(
+            `
+              insert into portfolio_position_snapshots (
+                position_id,
+                current_price_value,
+                current_price_currency,
+                current_price_label,
+                return_value,
+                return_label
+              )
+              values ($1, $2, $3, $4, $5, $6)
+            `,
+            [
+              update.id,
+              update.priceValue,
+              update.priceCurrency,
+              update.priceLabel,
+              update.returnValue,
+              update.returnLabel,
+            ],
+          )
+
+          await pool.query(
+            `
+              update portfolio_positions
+              set
+                latest_price_value = $2,
+                latest_price_currency = $3,
+                latest_price_label = $4,
+                latest_return_value = $5,
+                latest_return_label = $6,
+                latest_price_updated_at = now()
+              where id = $1
+            `,
+            [
+              update.id,
+              update.priceValue,
+              update.priceCurrency,
+              update.priceLabel,
+              update.returnValue,
+              update.returnLabel,
+            ],
+          )
+        }
+        await pool.query('COMMIT')
+      } catch (updateError) {
+        await pool.query('ROLLBACK')
+        console.error('Failed to persist TradingView quotes:', updateError)
+      }
+    }
+
+    return updatedPositions
   } catch (error) {
     console.error('Failed to fetch TradingView quotes in listPositions:', error)
     return positions
