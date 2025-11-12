@@ -180,6 +180,25 @@ a {
   font-size: 0.95rem;
 }
 
+.metric .change .metric-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.metric .change .metric-change.positive {
+  color: #34d399;
+}
+
+.metric .change .metric-change.negative {
+  color: #f87171;
+}
+
+.metric .change .metric-change.neutral {
+  color: var(--muted);
+}
+
 .portfolio-table-wrapper {
   --portfolio-table-min-rows: 5;
 
@@ -351,6 +370,78 @@ a {
 
 .neutral {
   color: var(--muted);
+}
+
+.recent-closures {
+  display: grid;
+  gap: 1.5rem;
+  background: var(--surface-strong);
+  border-radius: 24px;
+  padding: 2.5rem;
+  border: 1px solid rgb(148 163 184 / 0.2);
+}
+
+.recent-closures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.recent-closure-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.75rem;
+  background: var(--surface-soft);
+  border-radius: 20px;
+  border: 1px solid rgb(148 163 184 / 0.18);
+  box-shadow: 0 12px 30px rgb(8 47 73 / 0.25);
+}
+
+.recent-closure-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.recent-closure-card header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.recent-closure-card header time {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.recent-closure-card dl {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+}
+
+.recent-closure-card dl div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.recent-closure-card dt {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.recent-closure-card dd {
+  margin: 0;
+  font-size: 1rem;
+  color: #e5e9f5;
+}
+
+.recent-closure-card footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .footer {

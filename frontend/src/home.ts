@@ -138,6 +138,9 @@ function extractCurrentValueEntry(position: Position): MonetaryEntry {
 
 export function renderHome(): string {
   const positions = getPositions()
+  const closedPositions = positions.filter(
+    position => position.analysis?.positionClosed,
+  )
   const portfolioValueMetric = aggregateMonetaryValue(
     positions.map(position => extractCurrentValueEntry(position)),
     'PLN',
@@ -151,9 +154,12 @@ export function renderHome(): string {
     portfolioValueMetric.value !== null &&
     investedCapitalMetric.value !== null &&
     Math.abs(investedCapitalMetric.value) > Number.EPSILON
+  const portfolioChangeValue = comparableTotals
+    ? ((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100
+    : null
   const portfolioDescriptor = comparableTotals
-    ? `${formatPercentageChange(((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100)} względem kapitału`
-    : activePositionsLabel
+    ? `<span class="metric-change ${portfolioChangeValue && portfolioChangeValue < 0 ? 'negative' : 'positive'}">${formatPercentageChange(portfolioChangeValue ?? 0)} względem kapitału</span>`
+    : `<span class="metric-change neutral">${activePositionsLabel}</span>`
   const investedDescriptor =
     positions.length > 0 ? activePositionsLabel : 'Brak danych o kapitale'
   return `
@@ -183,7 +189,7 @@ export function renderHome(): string {
           <article class="metric">
             <span class="label">Wartość portfela</span>
             <span class="value">${portfolioValueMetric.label}</span>
-            <span class="change neutral">${portfolioDescriptor}</span>
+            <span class="change">${portfolioDescriptor}</span>
           </article>
           <article class="metric">
             <span class="label">Kapitał zainwestowany</span>
@@ -252,6 +258,58 @@ export function renderHome(): string {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section class="recent-closures">
+        <div class="section-header">
+          <h2>Ostatnio zamknięte pozycje</h2>
+          <p>Najważniejsze dane z pięciu ostatnich zamknięć</p>
+        </div>
+        ${
+          closedPositions.length
+            ? `<div class="recent-closures-grid">
+          ${closedPositions
+            .slice(0, 5)
+            .map(
+              position => `
+            <article class="recent-closure-card">
+              <header>
+                <div>
+                  <h3>${position.name}</h3>
+                  <span class="position-type-badge ${position.positionType}">${formatPositionType(position.positionType)}</span>
+                </div>
+                <time datetime="${position.analysis?.positionClosedDate ?? ''}">
+                  ${position.analysis?.positionClosedDate
+                    ? new Date(position.analysis.positionClosedDate).toLocaleDateString('pl-PL')
+                    : 'Brak daty'}
+                </time>
+              </header>
+              <dl>
+                <div>
+                  <dt>Zwrot</dt>
+                  <dd class="${
+                    position.returnValue > 0 ? 'positive' : position.returnValue < 0 ? 'negative' : 'neutral'
+                  }">${position.return}</dd>
+                </div>
+                <div>
+                  <dt>Kapitał</dt>
+                  <dd>${position.positionTotalValueLabel ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>Powód zamknięcia</dt>
+                  <dd>${position.analysis?.positionClosedNote ?? 'Brak notatki'}</dd>
+                </div>
+              </dl>
+              <footer>
+                <a class="details-link" href="#/position/${position.id}" data-position-id="${position.id}">Zobacz szczegóły</a>
+              </footer>
+            </article>
+          `,
+            )
+            .join('')}
+        </div>`
+            : '<p class="empty-state">Brak zamkniętych pozycji.</p>'
+        }
       </section>
     </main>
 
