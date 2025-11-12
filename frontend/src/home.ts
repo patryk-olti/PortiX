@@ -1,5 +1,23 @@
 import { getPositions } from './store'
 
+function renderPlaceholderRows(count: number): string {
+  return Array.from({ length: count })
+    .map(
+      () => `
+        <tr class="placeholder">
+          <td colspan="7">
+            <div class="placeholder-content">
+              <div class="placeholder-line short"></div>
+              <div class="placeholder-line medium"></div>
+              <div class="placeholder-line long"></div>
+            </div>
+          </td>
+        </tr>
+      `,
+    )
+    .join('')
+}
+
 export function renderHome(): string {
   const positions = getPositions()
   return `
@@ -67,9 +85,11 @@ export function renderHome(): string {
               </tr>
             </thead>
             <tbody>
-              ${positions
-                .map(
-                  position => `
+              ${
+                positions.length
+                  ? positions
+                      .map(
+                        position => `
                 <tr data-category="${position.category}">
                   <td>
                     <div class="portfolio-name">
@@ -95,8 +115,10 @@ export function renderHome(): string {
                   </td>
                 </tr>
               `,
-                )
-                .join('')}
+                      )
+                      .join('')
+                  : renderPlaceholderRows(5)
+              }
             </tbody>
           </table>
         </div>
