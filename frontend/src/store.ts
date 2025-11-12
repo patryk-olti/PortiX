@@ -428,11 +428,13 @@ export function replacePositions(positions: Position[]) {
           typeof currentPriceValue === 'number'
             ? formatPriceLabel(currentPriceValue, currentPriceCurrency)
             : position.currentPrice,
-        returnValue:
-          typeof existing.returnValue === 'number' && Number.isFinite(existing.returnValue)
-            ? existing.returnValue
-            : position.returnValue,
-        return: existing.return ?? position.return,
+        returnValue: Number.isFinite(position.returnValue)
+          ? position.returnValue
+          : existing.returnValue ?? position.returnValue,
+        return:
+          Number.isFinite(position.returnValue) && position.return
+            ? position.return
+            : existing.return ?? position.return,
       }
     })
 
