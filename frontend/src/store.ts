@@ -405,38 +405,7 @@ function formatPriceLabel(value: number, currency?: string | null): string {
 export function replacePositions(positions: Position[]) {
   updateState(current => {
     const next = clone(current)
-    const existingById = new Map(current.positions.map(position => [position.id, position]))
-    next.positions = migratePositions(clone(positions)).map(position => {
-      const existing = existingById.get(position.id)
-      if (!existing) {
-        return position
-      }
-
-      const currentPriceValue =
-        typeof existing.currentPriceValue === 'number' && Number.isFinite(existing.currentPriceValue)
-          ? existing.currentPriceValue
-          : position.currentPriceValue
-
-      const currentPriceCurrency =
-        normalizeCurrency(existing.currentPriceCurrency) ?? position.currentPriceCurrency ?? undefined
-
-      return {
-        ...position,
-        currentPriceValue,
-        currentPriceCurrency,
-        currentPrice:
-          typeof currentPriceValue === 'number'
-            ? formatPriceLabel(currentPriceValue, currentPriceCurrency)
-            : position.currentPrice,
-        returnValue: Number.isFinite(position.returnValue)
-          ? position.returnValue
-          : existing.returnValue ?? position.returnValue,
-        return:
-          Number.isFinite(position.returnValue) && position.return
-            ? position.return
-            : existing.return ?? position.return,
-      }
-    })
+    next.positions = migratePositions(clone(positions))
 
     next.positions.forEach(position => {
       if (!next.technicalAnalysis[position.id]) {
