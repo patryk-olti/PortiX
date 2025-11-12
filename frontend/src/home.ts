@@ -1,14 +1,22 @@
 import { getPositions } from './store'
+import type { Position } from './types'
 
 type MonetaryEntry = {
   value?: number | null
   currency?: string | null
 }
 
+type AggregatedMonetaryValue = {
+  value: number | null
+  label: string
+  currency: string | null
+  consistent: boolean
+}
+
 function aggregateMonetaryValue(
   entries: MonetaryEntry[],
-  fallbackCurrency: string | null = 'PLN',
-): { value: number | null; label: string } {
+  fallbackCurrency: string | null = null,
+): AggregatedMonetaryValue {
   const normalized = entries
     .map(entry => {
       if (!entry || typeof entry.value !== 'number' || Number.isNaN(entry.value)) {
@@ -23,7 +31,7 @@ function aggregateMonetaryValue(
     .filter((entry): entry is { value: number; currency: string | null } => entry !== null)
 
   if (!normalized.length) {
-    return { value: null, label: '—' }
+    return { value: null, label: '—', currency: null, consistent: false }
   }
 
   const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
@@ -38,14 +46,14 @@ function aggregateMonetaryValue(
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
-    return { value: total, label: formatter.format(total) }
+    return { value: total, label: formatter.format(total), currency: consistentCurrency, consistent: true }
   }
 
   const numberFormatter = new Intl.NumberFormat('pl-PL', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  return { value: total, label: numberFormatter.format(total) }
+  return { value: total, label: numberFormatter.format(total), currency: null, consistent: false }
 }
 
 function formatActivePositionsLabel(count: number): string {
@@ -64,37 +72,82 @@ function formatActivePositionsLabel(count: number): string {
   return `${count} aktywnych pozycji`
 }
 
+function formatPercentageChange(value: number): string {
+  if (!Number.isFinite(value)) {
+    return '—'
+  }
+
+  if (value === 0) {
+    return '0,00%'
+  }
+
+  const formatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const absolute = formatter.format(Math.abs(value))
+  return `${value > 0 ? '+' : '-'}${absolute}%`
+}
+
+function extractInvestedEntry(position: Position): MonetaryEntry {
+  if (position.positionSizeType === 'capital' && typeof position.positionSizeValue === 'number') {
+    return {
+      value: position.positionSizeValue,
+      currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null,
+    }
+  }
+
+  if (typeof position.positionTotalValue === 'number') {
+    return {
+      value: position.positionTotalValue,
+      currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
+    }
+  }
+
+  return { value: null, currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null }
+}
+
+function extractCurrentValueEntry(position: Position): MonetaryEntry {
+  const invested = extractInvestedEntry(position)
+  if (typeof invested.value !== 'number' || Number.isNaN(invested.value)) {
+    return { value: null, currency: invested.currency ?? null }
+  }
+
+  if (typeof position.returnValue === 'number' && Number.isFinite(position.returnValue)) {
+    const multiplier = 1 + position.returnValue / 100
+    return {
+      value: invested.value * multiplier,
+      currency: invested.currency ?? null,
+    }
+  }
+
+  return {
+    value: invested.value,
+    currency: invested.currency ?? null,
+  }
+}
+
 export function renderHome(): string {
   const positions = getPositions()
   const portfolioValueMetric = aggregateMonetaryValue(
-    positions.map(position => ({
-      value: position.positionTotalValue ?? null,
-      currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
-    })),
+    positions.map(position => extractCurrentValueEntry(position)),
   )
   const investedCapitalMetric = aggregateMonetaryValue(
-    positions.map(position => {
-      if (position.positionSizeType === 'capital' && typeof position.positionSizeValue === 'number') {
-        return {
-          value: position.positionSizeValue,
-          currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null,
-        }
-      }
-
-      if (typeof position.positionTotalValue === 'number') {
-        return {
-          value: position.positionTotalValue,
-          currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
-        }
-      }
-
-      return { value: null, currency: null }
-    }),
+    positions.map(position => extractInvestedEntry(position)),
   )
   const activePositionsLabel = formatActivePositionsLabel(positions.length)
+  const comparableTotals =
+    portfolioValueMetric.value !== null &&
+    investedCapitalMetric.value !== null &&
+    Math.abs(investedCapitalMetric.value) > Number.EPSILON &&
+    portfolioValueMetric.consistent &&
+    investedCapitalMetric.consistent &&
+    portfolioValueMetric.currency === investedCapitalMetric.currency
+  const portfolioDescriptor = comparableTotals
+    ? `${formatPercentageChange(((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100)} względem kapitału`
+    : activePositionsLabel
   const investedDescriptor =
-    investedCapitalMetric.value !== null ? 'Łączna ekspozycja kapitału' : 'Brak danych o kapitale'
-  const portfolioDescriptor = activePositionsLabel
+    positions.length > 0 ? activePositionsLabel : 'Brak danych o kapitale'
   return `
     <main class="page">
       <section class="hero">
