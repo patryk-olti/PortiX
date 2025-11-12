@@ -7,6 +7,8 @@ export interface Position {
   categoryName: string;
   purchasePrice: string;
   currentPrice: string;
+  currentPriceValue?: number;
+  currentPriceCurrency?: string;
   return: string;
   returnValue: number;
   positionType: 'long' | 'short';

@@ -28,10 +28,12 @@ const defaultState: AdminState = {
 const DEFAULT_QUOTE_SYMBOLS: Record<string, string> = {
   soxx: 'NASDAQ:SOXX',
   msft: 'NASDAQ:MSFT',
-  dax: 'INDEX:DAX',
+  dax: 'INDEX:DEU40',
   gold: 'TVC:GOLD',
   cash: 'OANDA:USDCAD',
 }
+
+const KNOWN_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'PLN', 'CAD', 'CHF', 'JPY'])
 
 const SAMPLE_STATUS_UPDATE_IDS = new Set([
   'release-1',
@@ -150,12 +152,54 @@ function resolveQuoteSymbol(position: Position, incoming?: unknown): string | un
   }
 }
 
+function normalizeCurrency(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const trimmed = value.trim().toUpperCase()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function inferCurrencyFromLabel(label: string | undefined): string | undefined {
+  if (!label || typeof label !== 'string') {
+    return undefined
+  }
+  const match = label.trim().match(/([A-Za-z]{3})$/)
+  if (!match) {
+    return undefined
+  }
+  const candidate = match[1].toUpperCase()
+  return KNOWN_CURRENCIES.has(candidate) ? candidate : undefined
+}
+
 function migratePositions(source: Position[]): Position[] {
-  return source.map(position => ({
-    ...position,
-    positionType: position.positionType ?? 'long',
-    quoteSymbol: resolveQuoteSymbol(position, (position as Position & { quoteSymbol?: unknown }).quoteSymbol),
-  }))
+  return source.map(position => {
+    const incoming = position as Position & {
+      quoteSymbol?: unknown
+      currentPriceValue?: unknown
+      currentPriceCurrency?: unknown
+    }
+
+    const quoteSymbol = resolveQuoteSymbol(position, incoming.quoteSymbol)
+
+    const numericValue =
+      typeof incoming.currentPriceValue === 'number' && Number.isFinite(incoming.currentPriceValue)
+        ? incoming.currentPriceValue
+        : parseNumericValue(position.currentPrice)
+
+    const currency =
+      normalizeCurrency(incoming.currentPriceCurrency) ?? inferCurrencyFromLabel(position.currentPrice)
+
+    return {
+      ...position,
+      positionType: position.positionType ?? 'long',
+      quoteSymbol,
+      currentPriceValue: typeof numericValue === 'number' ? numericValue : undefined,
+      currentPriceCurrency: currency,
+      currentPrice:
+        typeof numericValue === 'number' ? formatPriceLabel(numericValue, currency) : position.currentPrice,
+    }
+  })
 }
 
 function createEmptyAnalysisRecord(): TechnicalAnalysis {
@@ -358,7 +402,9 @@ function formatPriceLabel(value: number, currency?: string | null): string {
   return currency && currency.trim().length ? `${formatted} ${currency}` : formatted
 }
 
-export function applyPositionQuotes(updates: Array<{ id: string; symbol?: string; price: number | null | undefined; currency?: string | null }>) {
+export function applyPositionQuotes(
+  updates: Array<{ id: string; symbol?: string; price: number | null | undefined; currency?: string | null }>,
+) {
   if (!Array.isArray(updates) || !updates.length) {
     return
   }
@@ -381,6 +427,8 @@ export function applyPositionQuotes(updates: Array<{ id: string; symbol?: string
 
       if (typeof update.price === 'number' && Number.isFinite(update.price)) {
         target.currentPrice = formatPriceLabel(update.price, update.currency)
+        target.currentPriceValue = update.price
+        target.currentPriceCurrency = normalizeCurrency(update.currency) ?? target.currentPriceCurrency
 
         const purchaseValue = parseNumericValue(target.purchasePrice)
         if (typeof purchaseValue === 'number' && purchaseValue !== 0) {
@@ -399,7 +447,36 @@ export function applyPositionQuotes(updates: Array<{ id: string; symbol?: string
 export function replacePositions(positions: Position[]) {
   updateState(current => {
     const next = clone(current)
-    next.positions = migratePositions(clone(positions))
+    const existingById = new Map(current.positions.map(position => [position.id, position]))
+    next.positions = migratePositions(clone(positions)).map(position => {
+      const existing = existingById.get(position.id)
+      if (!existing) {
+        return position
+      }
+
+      const currentPriceValue =
+        typeof existing.currentPriceValue === 'number' && Number.isFinite(existing.currentPriceValue)
+          ? existing.currentPriceValue
+          : position.currentPriceValue
+
+      const currentPriceCurrency =
+        normalizeCurrency(existing.currentPriceCurrency) ?? position.currentPriceCurrency ?? undefined
+
+      return {
+        ...position,
+        currentPriceValue,
+        currentPriceCurrency,
+        currentPrice:
+          typeof currentPriceValue === 'number'
+            ? formatPriceLabel(currentPriceValue, currentPriceCurrency)
+            : position.currentPrice,
+        returnValue:
+          typeof existing.returnValue === 'number' && Number.isFinite(existing.returnValue)
+            ? existing.returnValue
+            : position.returnValue,
+        return: existing.return ?? position.return,
+      }
+    })
 
     next.positions.forEach(position => {
       if (!next.technicalAnalysis[position.id]) {
@@ -437,9 +514,17 @@ export function addPosition(payload: NewPositionPayload) {
   updateState(current => {
     const next = clone(current)
     next.positions = next.positions.filter(position => position.id !== payload.position.id)
+    const currency = inferCurrencyFromLabel(payload.position.currentPrice)
+    const currentPriceValue = parseNumericValue(payload.position.currentPrice)
     next.positions.push({
       ...payload.position,
       quoteSymbol: resolveQuoteSymbol(payload.position, payload.position.quoteSymbol),
+      currentPriceCurrency: currency,
+      currentPriceValue: typeof currentPriceValue === 'number' ? currentPriceValue : undefined,
+      currentPrice:
+        typeof currentPriceValue === 'number'
+          ? formatPriceLabel(currentPriceValue, currency)
+          : payload.position.currentPrice,
     })
     next.technicalAnalysis[payload.position.id] = payload.analysis
 
