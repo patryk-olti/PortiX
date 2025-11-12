@@ -12,6 +12,7 @@ const {
   deletePositionAnalysis,
   deletePosition,
   updatePositionQuoteSymbol,
+  previewQuoteSymbol,
 } = require('./lib/positions')
 const { fetchTradingViewQuotes } = require('./lib/tradingview')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
@@ -217,6 +218,22 @@ app.post('/api/positions', async (req, res) => {
       details: error instanceof Error ? error.message : String(error),
     })
   }
+})
+
+app.post('/api/positions/resolve-symbol', (req, res) => {
+  const { symbol, category, hint, quoteSymbol } = req.body ?? {}
+  if (typeof symbol !== 'string' || !symbol.trim()) {
+    res.status(400).json({ error: 'Symbol is required' })
+    return
+  }
+
+  const resolved = previewQuoteSymbol({
+    symbol,
+    category,
+    hint: typeof hint === 'string' && hint.trim() ? hint : quoteSymbol,
+  })
+
+  res.json({ data: resolved })
 })
 
 app.post('/api/news', async (req, res) => {

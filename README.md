@@ -205,8 +205,8 @@ Testy bazują na Vitest + jsdom i obejmują m.in. scenariusze:
   - podstawowe dane (nazwa, kategoria, typ),
   - parametry wielkości (kapitał / jednostki / pipsy) wraz z obliczeniem wartości pozycji,
   - analiza techniczna (trend, strategia wejścia, targety, obraz analizy),
-  - symbol TradingView z tooltipem opisującym prefiksy (`ALPHA:`, `BINANCE:`, itp.).
-- **Edycja analizy:** Możliwość aktualizacji analizy, zmiany symbolu, oznaczenia zamknięcia pozycji, dodania notatki i daty.
+  - symbol źródła kursu dobierany automatycznie na podstawie symbolu i kategorii pozycji.
+- **Edycja analizy:** Możliwość aktualizacji analizy, odświeżenia automatycznego symbolu kursu lub ręcznego nadpisania, oznaczenia zamknięcia pozycji, dodania notatki i daty.
 - **Usuwanie analizy/pozycji:** Dedykowane przyciski usuwające odpowiednio samą analizę lub całkowicie pozycję z bazy.
 - **Zamykanie pozycji:** Markowanie analizy jako zamkniętej z dodatkowym komentarzem.
 - **Aktualne kursy:** Wczytywane z backendu (stan `currentPrice` oraz `positionTotalValueLabel`).

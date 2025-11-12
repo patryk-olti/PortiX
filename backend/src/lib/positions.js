@@ -114,6 +114,37 @@ function resolveQuoteSymbol(symbol, category, incoming) {
   return normalizeQuoteInput(incoming) ?? getDefaultQuoteSymbol(symbol, category, incoming)
 }
 
+function previewQuoteSymbol(options) {
+  const { symbol, category, hint } = options ?? {}
+  const rawSymbol = typeof symbol === 'string' ? symbol.trim() : ''
+  if (!rawSymbol) {
+    return { quoteSymbol: null, source: 'missing-symbol' }
+  }
+
+  const normalizedCategory =
+    typeof category === 'string' && CATEGORY_SET.has(category.trim().toLowerCase())
+      ? category.trim().toLowerCase()
+      : undefined
+
+  const manual = normalizeQuoteInput(hint)
+  if (manual) {
+    return { quoteSymbol: manual, source: 'manual' }
+  }
+
+  const lower = rawSymbol.toLowerCase()
+  if (DEFAULT_QUOTE_SYMBOLS[lower]) {
+    return { quoteSymbol: DEFAULT_QUOTE_SYMBOLS[lower], source: 'predefined' }
+  }
+
+  const fallback = getDefaultQuoteSymbol(rawSymbol, normalizedCategory)
+  if (fallback) {
+    const source = fallback === rawSymbol.toUpperCase() ? 'symbol' : 'category'
+    return { quoteSymbol: fallback, source }
+  }
+
+  return { quoteSymbol: null, source: 'unresolved' }
+}
+
 function normalizeName(value, fallbackSymbol) {
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : fallbackSymbol
@@ -1490,6 +1521,7 @@ module.exports = {
   deletePositionAnalysis,
   deletePosition,
   updatePositionQuoteSymbol,
+  previewQuoteSymbol,
 }
 
 

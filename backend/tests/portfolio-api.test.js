@@ -122,6 +122,7 @@ describe('Portfolio positions API', () => {
       positionSizeType: 'capital',
       positionCurrency: 'USD',
     })
+    expect(position.quoteSymbol).toBe('NASDAQ:TEST')
     expect(position.analysis).toMatchObject({
       trend: 'bullish',
       stopLoss: '90 USD',
@@ -235,6 +236,29 @@ describe('Portfolio positions API', () => {
     expect(response.body).toMatchObject({
       error: 'Invalid position size type',
     })
+  })
+
+  test('resolves quote symbol suggestions automatically', async () => {
+    const response = await request(app).post('/api/positions/resolve-symbol').send({
+      symbol: 'BTCUSDT',
+      category: 'cryptocurrency',
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toHaveProperty('data')
+    expect(response.body.data).toMatchObject({
+      quoteSymbol: 'BINANCE:BTCUSDT',
+      source: expect.any(String),
+    })
+  })
+
+  test('returns validation error when symbol is missing in resolver', async () => {
+    const response = await request(app).post('/api/positions/resolve-symbol').send({
+      category: 'stock',
+    })
+
+    expect(response.status).toBe(400)
+    expect(response.body).toMatchObject({ error: 'Symbol is required' })
   })
 })
 

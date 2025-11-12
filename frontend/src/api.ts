@@ -137,6 +137,7 @@ export interface CreatePositionPayload {
   positionSizeLabel?: string
   positionSizePerPipLabel?: string
   analysis?: TechnicalAnalysis
+  positionCurrency?: string
 }
 
 export type PositionResponse = Position
@@ -144,6 +145,18 @@ export type PositionResponse = Position
 export interface DeletePositionResponse {
   id: string
   slug: string
+}
+
+export interface ResolveQuoteSymbolPayload {
+  symbol: string
+  category?: Position['category']
+  hint?: string
+  quoteSymbol?: string
+}
+
+export interface ResolveQuoteSymbolResult {
+  quoteSymbol: string | null
+  source?: string
 }
 
 export async function fetchPositions(): Promise<PositionResponse[]> {
@@ -230,6 +243,39 @@ export async function createPosition(payload: CreatePositionPayload): Promise<Po
   }
 
   return (json as { data: PositionResponse }).data
+}
+
+export async function resolveQuoteSymbol(
+  payload: ResolveQuoteSymbolPayload,
+): Promise<ResolveQuoteSymbolResult> {
+  const response = await fetch(resolveEndpoint('/api/positions/resolve-symbol'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore, handled below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to resolve quote symbol')
+        : 'Failed to resolve quote symbol'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: ResolveQuoteSymbolResult }).data
 }
 
 export async function fetchTradingViewQuotes(

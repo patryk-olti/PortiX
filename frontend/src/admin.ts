@@ -23,6 +23,7 @@ import {
   fetchPositions as fetchPositionsFromApi,
   deletePosition as deletePortfolioPosition,
   updatePositionMetadata,
+  resolveQuoteSymbol as resolveQuoteSymbolApi,
 } from './api'
 
 const categoryOptions = [
@@ -142,17 +143,7 @@ export function renderAdmin(): string {
                 <label class="form-field">
                   <span>Symbol</span>
                   <input type="text" name="symbol" required placeholder="np. NDX" />
-                </label>
-                <label class="form-field with-tooltip">
-                  <span>Symbol TradingView</span>
-                  <input type="text" name="quoteSymbol" placeholder="np. NASDAQ:NDX" />
-                  <span class="form-tooltip" role="tooltip">
-                    Możesz użyć prefiksów:
-                    <ul>
-                      <li><code>ALPHA:CL=F</code> – kurs z Alpha Vantage (wymaga klucza)</li>
-                      <li><code>TVC:USOIL</code> – kurs z TradingView</li>
-                    </ul>
-                  </span>
+                  <small class="field-hint">Symbol kursu zostanie dobrany automatycznie przy zapisie.</small>
                 </label>
                 <label class="form-field">
                   <span>Waluta transakcji</span>
@@ -580,13 +571,8 @@ function setupCreatePositionForm() {
     const formData = new FormData(form)
 
     const symbol = ((formData.get('symbol') as string) || '').trim().toUpperCase()
-    const quoteSymbolInput = (formData.get('quoteSymbol') as string)?.trim()
     const rawCurrency = (formData.get('positionCurrency') as string) ?? 'PLN'
     const positionCurrency = rawCurrency.trim().toUpperCase() || 'PLN'
-    const quoteSymbol =
-      quoteSymbolInput && quoteSymbolInput.length
-        ? quoteSymbolInput.replace(/\s+/g, '').toUpperCase()
-        : undefined
     const category = formData.get('category') as CategoryOption
     const positionType = (formData.get('positionType') as PositionTypeOption) ?? 'long'
     const purchasePriceRaw = (formData.get('purchasePrice') as string)?.trim() ?? ''
@@ -701,6 +687,19 @@ function setupCreatePositionForm() {
       entryStrategy: entryStrategy as typeof validEntryStrategies[number],
     }
 
+    let resolvedQuoteSymbol: string | undefined
+    try {
+      const resolved = await resolveQuoteSymbolApi({
+        symbol,
+        category,
+      })
+      if (resolved?.quoteSymbol) {
+        resolvedQuoteSymbol = resolved.quoteSymbol
+      }
+    } catch (error) {
+      console.warn('Nie udało się dobrać symbolu kursu automatycznie:', error)
+    }
+
     try {
       if (submitButton) {
         submitButton.disabled = true
@@ -715,7 +714,7 @@ function setupCreatePositionForm() {
         purchasePrice,
         currentPrice: purchasePrice,
         returnValue: 0,
-        quoteSymbol,
+        quoteSymbol: resolvedQuoteSymbol,
         positionSizeType,
         positionSizeValue: positionSizeValueToSend,
         positionSizeLabel: positionSizeLabelToSend,
@@ -727,7 +726,8 @@ function setupCreatePositionForm() {
       applyPositionUpdate(createdPosition)
       await refreshPositionsFromBackend()
 
-      alert(`Dodano nową pozycję ${symbol}.`)
+      const displayQuote = createdPosition.quoteSymbol ? ` (symbol kursu: ${createdPosition.quoteSymbol})` : ''
+      alert(`Dodano nową pozycję ${symbol}.${displayQuote}`)
       form.reset()
       if (sizeTypeSelect) {
         sizeTypeSelect.value = 'capital'
@@ -820,10 +820,75 @@ function bindAnalysisForm(form: HTMLFormElement) {
     positionId ? getTechnicalAnalysis(positionId) || createEmptyAnalysis() : createEmptyAnalysis()
   const initialPosition = getPositions().find(item => item.id === positionId)
   const initialQuoteSymbol = initialPosition?.quoteSymbol ?? ''
+  const quoteSymbolHiddenInput = form.querySelector<HTMLInputElement>('input[name="quoteSymbol"]')
+  const quoteSymbolDisplay = form.querySelector<HTMLElement>('[data-quote-symbol-display]')
+  const regenerateQuoteButton = form.querySelector<HTMLButtonElement>('.regenerate-quote-symbol')
+  const editQuoteButton = form.querySelector<HTMLButtonElement>('.edit-quote-symbol')
 
   setupClosureControls(form, initialAnalysis)
 
   const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+
+  const updateQuoteSymbolDisplay = (value?: string | null) => {
+    if (!quoteSymbolDisplay) {
+      return
+    }
+    const trimmed = typeof value === 'string' ? value.trim() : ''
+    quoteSymbolDisplay.textContent = trimmed || 'Automatyczne'
+    quoteSymbolDisplay.classList.toggle('muted', trimmed.length === 0)
+  }
+
+  const setQuoteSymbolValue = (value?: string | null) => {
+    if (quoteSymbolHiddenInput) {
+      quoteSymbolHiddenInput.value = value ? value.trim() : ''
+    }
+    updateQuoteSymbolDisplay(value)
+  }
+
+  setQuoteSymbolValue(quoteSymbolHiddenInput?.value ?? initialQuoteSymbol)
+
+  regenerateQuoteButton?.addEventListener('click', async event => {
+    event.preventDefault()
+    const currentPosition = getPositions().find(item => item.id === (form.dataset.positionId ?? positionId))
+    if (!currentPosition) {
+      alert('Nie udało się odnaleźć pozycji do aktualizacji symbolu.')
+      return
+    }
+
+    const originalLabel = regenerateQuoteButton.textContent ?? 'Ustaw automatycznie'
+
+    try {
+      regenerateQuoteButton.disabled = true
+      regenerateQuoteButton.textContent = 'Ustalanie...'
+      const resolved = await resolveQuoteSymbolApi({
+        symbol: currentPosition.symbol,
+        category: currentPosition.category,
+      })
+      if (resolved?.quoteSymbol) {
+        setQuoteSymbolValue(resolved.quoteSymbol)
+      } else {
+        setQuoteSymbolValue('')
+        alert('Nie udało się dobrać symbolu automatycznie.')
+      }
+    } catch (error) {
+      console.error('Nie udało się dobrać symbolu automatycznie:', error)
+      alert('Nie udało się dobrać symbolu automatycznie.')
+    } finally {
+      regenerateQuoteButton.disabled = false
+      regenerateQuoteButton.textContent = originalLabel
+    }
+  })
+
+  editQuoteButton?.addEventListener('click', event => {
+    event.preventDefault()
+    const currentValue = quoteSymbolHiddenInput?.value || initialQuoteSymbol || ''
+    const manualValue = window.prompt('Podaj symbol źródła kursu (pozostaw puste, aby użyć automatycznego)', currentValue)
+    if (manualValue === null) {
+      return
+    }
+    const sanitized = manualValue.replace(/\s+/g, '').toUpperCase()
+    setQuoteSymbolValue(sanitized)
+  })
 
   form.addEventListener('submit', async event => {
     event.preventDefault()
@@ -846,7 +911,9 @@ function bindAnalysisForm(form: HTMLFormElement) {
     const positionClosed = (formData.get('positionClosed') as string) === 'true'
     const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
     const positionClosedDateExplicit = (formData.get('positionClosedDateInput') as string)?.trim() ?? ''
-    const quoteSymbolInput = ((formData.get('quoteSymbol') as string) ?? '').trim()
+    const quoteSymbolInputRaw = ((formData.get('quoteSymbol') as string) ?? '').trim()
+    const quoteSymbolInput =
+      quoteSymbolInputRaw.length > 0 ? quoteSymbolInputRaw.replace(/\s+/g, '').toUpperCase() : ''
     const entryStrategy = (formData.get('entryStrategy') as string) || 'level'
     const currentImageValue = (formData.get('currentImage') as string) || undefined
     const analysisImageFile = formData.get('analysisImage') as File | null
@@ -884,13 +951,14 @@ function bindAnalysisForm(form: HTMLFormElement) {
 
       if (shouldUpdateQuoteSymbol) {
         const updatedPositionMetadata = await updatePositionMetadata(apiTargetId, {
-          quoteSymbol: quoteSymbolInput,
+          quoteSymbol: quoteSymbolInput || undefined,
         })
         if (updatedPositionMetadata) {
           applyPositionUpdate(updatedPositionMetadata)
           if (updatedPositionMetadata.databaseId) {
             form.dataset.databaseId = updatedPositionMetadata.databaseId
           }
+          setQuoteSymbolValue(updatedPositionMetadata.quoteSymbol ?? '')
         }
       }
 
@@ -1422,17 +1490,25 @@ function renderAnalysisForm(positionId: string): string {
             <option value="formationRetest" ${analysis.entryStrategy === 'formationRetest' ? 'selected' : ''}>Retest formacji</option>
           </select>
         </label>
-        <label class="form-field with-tooltip">
-          <span>Symbol TradingView</span>
-          <input type="text" name="quoteSymbol" placeholder="np. NASDAQ:NDX" />
-          <span class="form-tooltip" role="tooltip">
-            Możesz użyć prefiksów:
-            <ul>
-              <li><code>ALPHA:CL=F</code> – kurs z Alpha Vantage (wymaga klucza)</li>
-              <li><code>TVC:USOIL</code> – kurs z TradingView</li>
-            </ul>
-          </span>
-        </label>
+        <div class="form-field quote-symbol-field">
+          <span>Źródło kursu</span>
+          <div class="quote-symbol-display">
+            <span
+              class="quote-symbol-text ${position.quoteSymbol ? '' : 'muted'}"
+              data-quote-symbol-display
+            >
+              ${position.quoteSymbol ?? 'Automatyczne'}
+            </span>
+            <div class="quote-symbol-actions">
+              <button type="button" class="link-button regenerate-quote-symbol">Ustaw automatycznie</button>
+              <button type="button" class="link-button edit-quote-symbol">Edytuj ręcznie</button>
+            </div>
+          </div>
+          <input type="hidden" name="quoteSymbol" value="${position.quoteSymbol ?? ''}" />
+          <p class="form-hint">
+            Symbol do pobierania kursu jest dobierany automatycznie na podstawie symbolu pozycji oraz kategorii.
+          </p>
+        </div>
         <label class="form-field">
           <span>TP1</span>
           <input type="text" name="tp1" value="${targets.tp1 ?? ''}" placeholder="np. 450 USD" />
