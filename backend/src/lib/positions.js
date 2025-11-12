@@ -40,6 +40,10 @@ const QUOTES_CONFIG = {
   'NASDAQ:SOXX': { provider: 'alphaVantage', symbol: 'SOXX', currency: 'USD' },
 }
 
+const ALPHA_FALLBACK_SYMBOLS = {
+  'CL=F': 'TVC:USOIL',
+}
+
 const CATEGORY_LABELS = {
   stock: 'Akcje',
   commodity: 'Surowiec',
@@ -996,16 +1000,31 @@ async function fetchQuoteUpdates(positions) {
     }
   }
 
+  const pushTradingViewFallback = (position, config) => {
+    if (!position) {
+      return
+    }
+    const fallback =
+      (config?.provider === 'alphaVantage' && config?.symbol && ALPHA_FALLBACK_SYMBOLS[config.symbol.toUpperCase()]
+        ? ALPHA_FALLBACK_SYMBOLS[config.symbol.toUpperCase()]
+        : position.quoteSymbol) ?? position.quoteSymbol
+
+    if (!fallback) {
+      return
+    }
+
+    if (!tradingViewSymbols.has(fallback)) {
+      tradingViewSymbols.set(fallback, [])
+    }
+    tradingViewSymbols.get(fallback).push(position)
+  }
+
   if (alphaItems.length) {
     const apiKey = process.env.ALPHA_VANTAGE_API_KEY
     if (!apiKey) {
       console.warn('ALPHA_VANTAGE_API_KEY is not set, falling back to TradingView for alpha-prefixed symbols')
       alphaItems.forEach(item => {
-        const symbol = item.position.quoteSymbol
-        if (!tradingViewSymbols.has(symbol)) {
-          tradingViewSymbols.set(symbol, [])
-        }
-        tradingViewSymbols.get(symbol).push(item.position)
+        pushTradingViewFallback(item.position, item.config)
       })
     } else {
       for (const item of alphaItems) {
@@ -1025,11 +1044,7 @@ async function fetchQuoteUpdates(positions) {
           console.error(`Failed to fetch Alpha Vantage quote for ${item.config.symbol}:`, error)
         }
 
-        const symbol = item.position.quoteSymbol
-        if (!tradingViewSymbols.has(symbol)) {
-          tradingViewSymbols.set(symbol, [])
-        }
-        tradingViewSymbols.get(symbol).push(item.position)
+        pushTradingViewFallback(item.position, item.config)
       }
     }
   }
