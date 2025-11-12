@@ -255,6 +255,28 @@ export function getStatusUpdates(): StatusUpdate[] {
   return clone(state.statusUpdates)
 }
 
+export function replacePositions(positions: Position[]) {
+  updateState(current => {
+    const next = clone(current)
+    next.positions = migratePositions(clone(positions))
+
+    next.positions.forEach(position => {
+      if (!next.technicalAnalysis[position.id]) {
+        next.technicalAnalysis[position.id] =
+          defaultState.technicalAnalysis[position.id] ?? createEmptyAnalysisRecord()
+      }
+      if (!next.modifications[position.id]) {
+        next.modifications[position.id] = []
+      }
+      if (!next.insights[position.id]) {
+        next.insights[position.id] = []
+      }
+    })
+
+    return next
+  })
+}
+
 export function replaceStatusUpdates(updates: StatusUpdate[]) {
   updateState(current => {
     const next = clone(current)
@@ -273,6 +295,7 @@ export interface NewPositionPayload {
 export function addPosition(payload: NewPositionPayload) {
   updateState(current => {
     const next = clone(current)
+    next.positions = next.positions.filter(position => position.id !== payload.position.id)
     next.positions.push(payload.position)
     next.technicalAnalysis[payload.position.id] = payload.analysis
 

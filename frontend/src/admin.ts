@@ -10,7 +10,7 @@ import {
   upsertTechnicalAnalysis,
 } from './store'
 import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
-import { createNews, fetchStatusUpdates, updateNews, deleteNews } from './api'
+import { createNews, fetchStatusUpdates, updateNews, deleteNews, createPosition as createPortfolioPosition } from './api'
 
 const categoryOptions = [
   { value: 'stock', label: 'Akcje' },
@@ -101,6 +101,9 @@ export function renderAdmin(): string {
             )
             .join('')}
         </nav>
+        <div class="admin-sidebar-footer">
+          <button type="button" class="logout-button admin-logout">Wyloguj</button>
+        </div>
       </aside>
 
       <section class="admin-content">
@@ -355,6 +358,8 @@ function setupCreatePositionForm() {
     return
   }
 
+  const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+
   form.addEventListener('submit', async event => {
     event.preventDefault()
     const formData = new FormData(form)
@@ -400,19 +405,6 @@ function setupCreatePositionForm() {
       }
     }
 
-    const position = {
-      id,
-      symbol,
-      name: symbol,
-      category,
-      categoryName: getCategoryLabel(category),
-      purchasePrice,
-      currentPrice: purchasePrice,
-      return: formatReturn(0),
-      returnValue: 0,
-      positionType,
-    }
-
     const analysis: TechnicalAnalysis = {
       trend,
       targets: {
@@ -426,9 +418,35 @@ function setupCreatePositionForm() {
       tradingViewUrl: normalizedTradingViewUrl,
     }
 
-    addPosition({ position, analysis })
-    alert(`Dodano nową pozycję ${symbol}.`)
-    form.reset()
+    try {
+      if (submitButton) {
+        submitButton.disabled = true
+        submitButton.textContent = 'Dodawanie...'
+      }
+
+      const createdPosition = await createPortfolioPosition({
+        symbol,
+        name: symbol,
+        category,
+        positionType,
+        purchasePrice,
+        currentPrice: purchasePrice,
+        returnValue: 0,
+      })
+
+      addPosition({ position: createdPosition, analysis })
+      alert(`Dodano nową pozycję ${symbol}.`)
+      form.reset()
+    } catch (error) {
+      console.error('Nie udało się dodać pozycji:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się dodać pozycji.'
+      alert(message)
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Dodaj pozycję'
+      }
+    }
   })
 }
 
@@ -843,17 +861,8 @@ function createEmptyAnalysis(): TechnicalAnalysis {
   }
 }
 
-function getCategoryLabel(category: CategoryOption): string {
-  return categoryOptions.find(option => option.value === category)?.label ?? category
-}
-
 function renderTrendOption(value: TrendOption, label: string, current?: TrendOption): string {
   return `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`
-}
-
-function formatReturn(value: number): string {
-  const formatted = Math.round(value * 10) / 10
-  return `${formatted > 0 ? '+' : ''}${formatted.toFixed(1)}%`
 }
 
 function formatDate(dateString: string): string {

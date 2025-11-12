@@ -1,4 +1,4 @@
-import type { StatusUpdate } from './types'
+import type { Position, StatusUpdate } from './types'
 
 const EXPLICIT_API_BASE =
   typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL
@@ -59,6 +59,74 @@ export interface NewsResponse {
   publishedOn: string
   createdAt: string
   updatedAt: string
+}
+
+export interface CreatePositionPayload {
+  symbol: string
+  name?: string
+  category: Position['category']
+  positionType: Position['positionType']
+  purchasePrice: string
+  currentPrice?: string
+  returnValue?: number
+}
+
+export type PositionResponse = Position
+
+export async function fetchPositions(): Promise<PositionResponse[]> {
+  const response = await fetch(resolveEndpoint('/api/positions'))
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore, handled below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to load positions')
+        : 'Failed to load positions'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: PositionResponse[] }).data
+}
+
+export async function createPosition(payload: CreatePositionPayload): Promise<PositionResponse> {
+  const response = await fetch(resolveEndpoint('/api/positions'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore, handled below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to create position')
+        : 'Failed to create position'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: PositionResponse }).data
 }
 
 export async function deleteNews(id: string): Promise<void> {

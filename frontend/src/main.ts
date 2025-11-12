@@ -4,7 +4,8 @@ import { renderPositionDetails, setupPositionDetailsHandlers } from './position-
 import { renderLogin, setupLoginHandlers } from './login'
 import { renderAdmin, setupAdminHandlers } from './admin'
 import { renderStatus, setupStatusHandlers } from './status'
-import { subscribe } from './store'
+import { subscribe, replacePositions } from './store'
+import { fetchPositions } from './api'
 
 function getRoute(): { path: string; params: Record<string, string> } {
   const hash = window.location.hash.slice(1)
@@ -119,3 +120,16 @@ window.addEventListener('hashchange', render)
 subscribe(() => {
   render()
 })
+
+async function bootstrapPositions() {
+  try {
+    const positions = await fetchPositions()
+    if (Array.isArray(positions)) {
+      replacePositions(positions)
+    }
+  } catch (error) {
+    console.error('Failed to synchronize positions from API:', error)
+  }
+}
+
+void bootstrapPositions()
