@@ -402,48 +402,6 @@ function formatPriceLabel(value: number, currency?: string | null): string {
   return currency && currency.trim().length ? `${formatted} ${currency}` : formatted
 }
 
-export function applyPositionQuotes(
-  updates: Array<{ id: string; symbol?: string; price: number | null | undefined; currency?: string | null }>,
-) {
-  if (!Array.isArray(updates) || !updates.length) {
-    return
-  }
-
-  updateState(current => {
-    const next = clone(current)
-
-    updates.forEach(update => {
-      if (!update?.id) {
-        return
-      }
-      const target = next.positions.find(position => position.id === update.id)
-      if (!target) {
-        return
-      }
-
-      if (typeof update.symbol === 'string' && update.symbol.trim()) {
-        target.quoteSymbol = update.symbol.trim()
-      }
-
-      if (typeof update.price === 'number' && Number.isFinite(update.price)) {
-        target.currentPrice = formatPriceLabel(update.price, update.currency)
-        target.currentPriceValue = update.price
-        target.currentPriceCurrency = normalizeCurrency(update.currency) ?? target.currentPriceCurrency
-
-        const purchaseValue = parseNumericValue(target.purchasePrice)
-        if (typeof purchaseValue === 'number' && purchaseValue !== 0) {
-          const changePercent = ((update.price - purchaseValue) / purchaseValue) * 100
-          const rounded = Math.round(changePercent * 10) / 10
-          target.returnValue = rounded
-          target.return = `${rounded >= 0 ? '+' : ''}${rounded.toFixed(1)}%`
-        }
-      }
-    })
-
-    return next
-  })
-}
-
 export function replacePositions(positions: Position[]) {
   updateState(current => {
     const next = clone(current)

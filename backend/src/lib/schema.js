@@ -33,6 +33,7 @@ async function ensurePortfolioTables() {
       id uuid primary key default gen_random_uuid(),
       slug text not null unique,
       symbol text not null unique,
+      quote_symbol text,
       name text not null,
       category text not null check (category = any (ARRAY[${POSITION_CATEGORY_ARRAY_SQL}]::text[])),
       position_type text not null check (position_type = any (ARRAY[${POSITION_TYPE_ARRAY_SQL}]::text[])),
@@ -40,6 +41,17 @@ async function ensurePortfolioTables() {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     )
+  `)
+
+  await pool.query(`
+    alter table portfolio_positions
+      add column if not exists quote_symbol text
+  `)
+
+  await pool.query(`
+    update portfolio_positions
+    set quote_symbol = upper(symbol)
+    where quote_symbol is null
   `)
 
   await pool.query(`
@@ -78,11 +90,23 @@ async function ensurePortfolioTables() {
       id uuid primary key default gen_random_uuid(),
       position_id uuid not null references portfolio_positions (id) on delete cascade,
       recorded_at timestamptz not null default now(),
+      current_price_value numeric,
+      current_price_currency text,
       current_price_label text not null,
       return_value numeric not null default 0,
       return_label text not null,
       created_at timestamptz not null default now()
     )
+  `)
+
+  await pool.query(`
+    alter table portfolio_position_snapshots
+      add column if not exists current_price_value numeric
+  `)
+
+  await pool.query(`
+    alter table portfolio_position_snapshots
+      add column if not exists current_price_currency text
   `)
 
   await pool.query(`
