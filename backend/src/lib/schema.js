@@ -55,6 +55,18 @@ async function ensurePortfolioTables() {
   `)
 
   await pool.query(`
+    update portfolio_positions
+    set quote_symbol = case
+      when lower(symbol) = 'soxx' then 'NASDAQ:SOXX'
+      when lower(symbol) = 'msft' then 'NASDAQ:MSFT'
+      when lower(symbol) = 'dax' then 'INDEX:DEU40'
+      when lower(symbol) = 'gold' then 'TVC:GOLD'
+      when lower(symbol) = 'cash' then 'OANDA:USDCAD'
+      else quote_symbol
+    end
+  `)
+
+  await pool.query(`
     alter table portfolio_positions
       add column if not exists slug text
   `)
