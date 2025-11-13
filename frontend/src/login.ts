@@ -1,3 +1,5 @@
+import { login } from './api'
+
 export function renderLogin(): string {
   return `
     <main class="page login-page">
@@ -53,6 +55,7 @@ export function renderLogin(): string {
 export function setupLoginHandlers(): void {
   const loginForm = document.querySelector<HTMLFormElement>('#login-form');
   const errorDiv = document.querySelector<HTMLDivElement>('#login-error');
+  const submitButton = loginForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
   
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -63,14 +66,41 @@ export function setupLoginHandlers(): void {
     }
     
     const formData = new FormData(loginForm);
-    const rawUsername = (formData.get('username') as string) ?? '';
-    const username = rawUsername.trim() || 'Administrator';
-    // Walidacja została tymczasowo wyłączona, aby umożliwić logowanie bez podawania hasła.
-    void formData.get('password');
+    const username = (formData.get('username') as string)?.trim() ?? '';
+    const password = (formData.get('password') as string) ?? '';
     
-    localStorage.setItem('adminAuthenticated', 'true');
-    localStorage.setItem('adminUsername', username || 'Administrator');
-    localStorage.setItem('adminLastLogin', new Date().toISOString());
-    window.location.hash = '#/admin';
+    if (!username || !password) {
+      if (errorDiv) {
+        errorDiv.textContent = 'Wypełnij wszystkie pola';
+        errorDiv.style.display = 'block';
+      }
+      return;
+    }
+    
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Logowanie...';
+    }
+    
+    try {
+      const user = await login({ username, password });
+      
+      localStorage.setItem('adminAuthenticated', 'true');
+      localStorage.setItem('adminUsername', user.username);
+      localStorage.setItem('adminUserId', user.id);
+      localStorage.setItem('adminLastLogin', new Date().toISOString());
+      window.location.hash = '#/admin';
+    } catch (error) {
+      console.error('Login error:', error);
+      if (errorDiv) {
+        errorDiv.textContent = error instanceof Error ? error.message : 'Wystąpił błąd podczas logowania';
+        errorDiv.style.display = 'block';
+      }
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Zaloguj się';
+      }
+    }
   });
 }
