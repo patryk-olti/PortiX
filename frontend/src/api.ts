@@ -1,4 +1,4 @@
-import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
+import type { Idea, Position, StatusUpdate, TechnicalAnalysis } from './types'
 
 const EXPLICIT_API_BASE =
   typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL
@@ -594,5 +594,310 @@ export async function updatePositionMetadata(
   }
 
   return (json as { data: PositionResponse }).data
+}
+
+export interface CreateIdeaPayload {
+  symbol: string
+  market: string
+  entryLevel: string
+  stopLoss: string
+  description: string
+  targetTp?: string | null
+  entryStrategy?: Idea['entryStrategy']
+  tradingviewImage?: string | null
+}
+
+export type IdeaResponse = Idea
+
+export async function fetchIdeas(limit?: number): Promise<IdeaResponse[]> {
+  const query = typeof limit === 'number' ? `?limit=${encodeURIComponent(limit)}` : ''
+  const response = await fetch(resolveEndpoint(`/api/ideas${query}`))
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to load ideas')
+        : 'Failed to load ideas'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: IdeaResponse[] }).data
+}
+
+export async function fetchIdea(id: string): Promise<IdeaResponse> {
+  const response = await fetch(resolveEndpoint(`/api/ideas/${encodeURIComponent(id)}`))
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to load idea')
+        : 'Failed to load idea'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: IdeaResponse }).data
+}
+
+export async function createIdea(payload: CreateIdeaPayload): Promise<IdeaResponse> {
+  const response = await fetch(resolveEndpoint('/api/ideas'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, will throw below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to create idea')
+        : 'Failed to create idea'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: IdeaResponse }).data
+}
+
+export interface UpdateIdeaPayload {
+  symbol?: string
+  market?: string
+  entryLevel?: string
+  stopLoss?: string
+  description?: string
+  targetTp?: string | null
+  entryStrategy?: Idea['entryStrategy'] | null
+  tradingviewImage?: string | null
+}
+
+export async function updateIdea(id: string, payload: UpdateIdeaPayload): Promise<IdeaResponse> {
+  const response = await fetch(resolveEndpoint(`/api/ideas/${encodeURIComponent(id)}`), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to update idea')
+        : 'Failed to update idea'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: IdeaResponse }).data
+}
+
+export async function deleteIdea(id: string): Promise<void> {
+  const response = await fetch(resolveEndpoint(`/api/ideas/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    let message = 'Failed to delete idea'
+    try {
+      const json = (await response.json()) as { error?: string }
+      if (json?.error) {
+        message = json.error
+      }
+    } catch (_error) {
+      // ignore parse error
+    }
+    throw new Error(message)
+  }
+}
+
+export interface LoginPayload {
+  username: string
+  password: string
+}
+
+export interface UserResponse {
+  id: string
+  username: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function login(payload: LoginPayload): Promise<UserResponse> {
+  const response = await fetch(resolveEndpoint('/api/auth/login'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to login')
+        : 'Failed to login'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse }).data
+}
+
+export interface CreateUserPayload {
+  username: string
+  password: string
+}
+
+export async function createUser(payload: CreateUserPayload): Promise<UserResponse> {
+  const response = await fetch(resolveEndpoint('/api/users'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to create user')
+        : 'Failed to create user'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse }).data
+}
+
+export async function fetchUsers(limit?: number): Promise<UserResponse[]> {
+  const query = typeof limit === 'number' ? `?limit=${encodeURIComponent(limit)}` : ''
+  const response = await fetch(resolveEndpoint(`/api/users${query}`))
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to load users')
+        : 'Failed to load users'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse[] }).data
+}
+
+export async function fetchUser(id: string): Promise<UserResponse> {
+  const response = await fetch(resolveEndpoint(`/api/users/${encodeURIComponent(id)}`))
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore json parse errors, handle below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to load user')
+        : 'Failed to load user'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse }).data
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  const response = await fetch(resolveEndpoint(`/api/users/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    let message = 'Failed to delete user'
+    try {
+      const json = (await response.json()) as { error?: string }
+      if (json?.error) {
+        message = json.error
+      }
+    } catch (_error) {
+      // ignore parse error
+    }
+    throw new Error(message)
+  }
 }
 

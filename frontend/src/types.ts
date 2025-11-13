@@ -69,3 +69,19 @@ export interface StatusUpdate {
   importance: 'critical' | 'important' | 'informational';
 }
 
+export interface Idea {
+  id: string;
+  symbol: string;
+  name: string;
+  market: string;
+  entryLevel: string;
+  stopLoss: string;
+  description: string;
+  targetTp?: string | null;
+  entryStrategy?: 'level' | 'candlePattern' | 'formationRetest' | null;
+  tradingviewImage?: string | null;
+  publishedOn: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

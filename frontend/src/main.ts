@@ -4,6 +4,7 @@ import { renderPositionDetails, setupPositionDetailsHandlers } from './position-
 import { renderLogin, setupLoginHandlers } from './login'
 import { renderAdmin, setupAdminHandlers } from './admin'
 import { renderStatus, setupStatusHandlers } from './status'
+import { renderIdeaDetails, setupIdeaDetailsHandlers } from './idea-details'
 import { subscribe, replacePositions } from './store'
 import { fetchPositions } from './api'
 
@@ -13,7 +14,7 @@ function getRoute(): { path: string; params: Record<string, string> } {
   const path = pathParts[0] || '/'
   
   const params: Record<string, string> = {}
-  if (path === 'position' && pathParts.length > 1) {
+  if ((path === 'position' || path === 'idea') && pathParts.length > 1) {
     params.id = pathParts[1]
   }
   
@@ -45,6 +46,16 @@ function render() {
       // Use setTimeout to ensure DOM is fully updated before setting up handlers
       setTimeout(() => {
         setupPositionDetailsHandlers()
+      }, 0)
+      app.classList.remove('admin-root')
+    } else if (route.path === 'idea' && route.params.id) {
+      const html = renderIdeaDetails(route.params.id)
+      app.innerHTML = html
+      if (shouldScroll) {
+        window.scrollTo(0, 0)
+      }
+      setTimeout(async () => {
+        await setupIdeaDetailsHandlers(route.params.id)
       }, 0)
       app.classList.remove('admin-root')
     } else if (route.path === 'login') {

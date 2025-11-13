@@ -1,5 +1,6 @@
 import { getPositions } from './store'
-import type { Position } from './types'
+import type { Idea, Position } from './types'
+import { fetchIdeas } from './api'
 
 type MonetaryEntry = {
   value?: number | null
@@ -260,6 +261,16 @@ export function renderHome(): string {
         </div>
       </section>
 
+      <section class="ideas-section" id="ideas-section">
+        <div class="section-header">
+          <h2>Pomysły</h2>
+          <p>Najnowsze pomysły inwestycyjne</p>
+        </div>
+        <div class="ideas-loading" id="ideas-loading">Ładowanie pomysłów...</div>
+        <div class="ideas-grid" id="ideas-grid" hidden></div>
+        <p class="empty-state" id="ideas-empty" hidden>Brak dostępnych pomysłów.</p>
+      </section>
+
       <section class="recent-closures">
         <div class="section-header">
           <h2>Ostatnio zamknięte pozycje</h2>
@@ -343,6 +354,81 @@ export function setupHomeHandlers(): void {
       row.style.display = row.dataset.category === value ? '' : 'none'
     })
   })
+
+  // Load ideas after DOM is ready
+  setTimeout(() => {
+    void loadIdeas()
+  }, 0)
+}
+
+async function loadIdeas(): Promise<void> {
+  const loadingEl = document.getElementById('ideas-loading')
+  const gridEl = document.getElementById('ideas-grid')
+  const emptyEl = document.getElementById('ideas-empty')
+
+  if (!loadingEl || !gridEl || !emptyEl) {
+    return
+  }
+
+  try {
+    const ideas = await fetchIdeas(10)
+    loadingEl.hidden = true
+
+    if (!ideas || ideas.length === 0) {
+      emptyEl.hidden = false
+      return
+    }
+
+    gridEl.hidden = false
+    emptyEl.hidden = true
+
+    gridEl.innerHTML = ideas
+      .map(
+        idea => `
+      <article class="idea-card">
+        ${idea.tradingviewImage ? `<img src="${idea.tradingviewImage}" alt="Wykres ${idea.symbol}" class="idea-image" />` : ''}
+        <div class="idea-content">
+          <header>
+            <h3>${escapeHtml(idea.symbol)}</h3>
+            <span class="idea-market">${escapeHtml(idea.market)}</span>
+          </header>
+          <dl class="idea-details">
+            <div>
+              <dt>Rynek</dt>
+              <dd>${escapeHtml(idea.market)}</dd>
+            </div>
+            <div>
+              <dt>Wejście</dt>
+              <dd>${escapeHtml(idea.entryLevel)}</dd>
+            </div>
+            <div>
+              <dt>Stop Loss</dt>
+              <dd>${escapeHtml(idea.stopLoss)}</dd>
+            </div>
+            ${idea.targetTp ? `<div><dt>TP</dt><dd>${escapeHtml(idea.targetTp)}</dd></div>` : ''}
+          </dl>
+          <p class="idea-description">${escapeHtml(idea.description.slice(0, 150))}${idea.description.length > 150 ? '...' : ''}</p>
+          <footer>
+            <time datetime="${idea.publishedOn}">${new Date(idea.publishedOn).toLocaleDateString('pl-PL')}</time>
+            <a class="details-link" href="#/idea/${idea.id}" data-idea-id="${idea.id}">Zobacz szczegóły</a>
+          </footer>
+        </div>
+      </article>
+    `,
+      )
+      .join('')
+  } catch (error) {
+    console.error('Failed to load ideas:', error)
+    loadingEl.hidden = true
+    emptyEl.hidden = false
+    emptyEl.textContent = 'Nie udało się załadować pomysłów.'
+  }
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
 }
 
 function formatPositionType(positionType: 'long' | 'short'): string {
