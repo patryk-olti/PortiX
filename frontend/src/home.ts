@@ -1,0 +1,437 @@
+import { getPositions } from './store'
+import type { Idea, Position } from './types'
+import { fetchIdeas } from './api'
+
+type MonetaryEntry = {
+  value?: number | null
+  currency?: string | null
+}
+
+type AggregatedMonetaryValue = {
+  value: number | null
+  label: string
+  currency: string | null
+  consistent: boolean
+}
+
+function aggregateMonetaryValue(
+  entries: MonetaryEntry[],
+  fallbackCurrency: string | null = null,
+): AggregatedMonetaryValue {
+  const normalized = entries
+    .map(entry => {
+      if (!entry || typeof entry.value !== 'number' || Number.isNaN(entry.value)) {
+        return null
+      }
+
+      return {
+        value: entry.value,
+        currency: entry.currency ?? fallbackCurrency,
+      }
+    })
+    .filter((entry): entry is { value: number; currency: string | null } => entry !== null)
+
+  if (!normalized.length) {
+    return { value: null, label: '—', currency: null, consistent: false }
+  }
+
+  const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
+  const currencies = new Set(
+    normalized.map(entry =>
+      entry.currency != null ? entry.currency : fallbackCurrency != null ? fallbackCurrency : null,
+    ),
+  )
+  const consistent = currencies.size <= 1
+  const [currency] = currencies
+
+  if (consistent && currency) {
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return { value: total, label: formatter.format(total), currency, consistent: true }
+  }
+
+  const numberFormatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return {
+    value: total,
+    label: numberFormatter.format(total),
+    currency: consistent ? (currency ?? null) : null,
+    consistent,
+  }
+}
+
+function formatActivePositionsLabel(count: number): string {
+  if (count === 0) {
+    return 'Brak aktywnych pozycji'
+  }
+
+  if (count === 1) {
+    return '1 aktywna pozycja'
+  }
+
+  if (count >= 2 && count <= 4) {
+    return `${count} aktywne pozycje`
+  }
+
+  return `${count} aktywnych pozycji`
+}
+
+function formatPercentageChange(value: number): string {
+  if (!Number.isFinite(value)) {
+    return '—'
+  }
+
+  if (value === 0) {
+    return '0,00%'
+  }
+
+  const formatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const absolute = formatter.format(Math.abs(value))
+  return `${value > 0 ? '+' : '-'}${absolute}%`
+}
+
+function extractInvestedEntry(position: Position): MonetaryEntry {
+  if (position.positionSizeType === 'capital' && typeof position.positionSizeValue === 'number') {
+    return {
+      value: position.positionSizeValue,
+      currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null,
+    }
+  }
+
+  if (typeof position.positionTotalValue === 'number') {
+    return {
+      value: position.positionTotalValue,
+      currency: position.positionTotalValueCurrency ?? position.positionCurrency ?? null,
+    }
+  }
+
+  return { value: null, currency: position.positionCurrency ?? position.positionTotalValueCurrency ?? null }
+}
+
+function extractCurrentValueEntry(position: Position): MonetaryEntry {
+  const invested = extractInvestedEntry(position)
+  if (typeof invested.value !== 'number' || Number.isNaN(invested.value)) {
+    return { value: null, currency: invested.currency ?? null }
+  }
+
+  if (typeof position.returnValue === 'number' && Number.isFinite(position.returnValue)) {
+    const multiplier = 1 + position.returnValue / 100
+    return {
+      value: invested.value * multiplier,
+      currency: invested.currency ?? null,
+    }
+  }
+
+  return {
+    value: invested.value,
+    currency: invested.currency ?? null,
+  }
+}
+
+export function renderHome(): string {
+  const positions = getPositions()
+  const closedPositions = positions.filter(
+    position => position.analysis?.positionClosed,
+  )
+  const portfolioValueMetric = aggregateMonetaryValue(
+    positions.map(position => extractCurrentValueEntry(position)),
+    'PLN',
+  )
+  const investedCapitalMetric = aggregateMonetaryValue(
+    positions.map(position => extractInvestedEntry(position)),
+    'PLN',
+  )
+  const activePositionsLabel = formatActivePositionsLabel(positions.length)
+  const comparableTotals =
+    portfolioValueMetric.value !== null &&
+    investedCapitalMetric.value !== null &&
+    Math.abs(investedCapitalMetric.value) > Number.EPSILON
+  const portfolioChangeValue = comparableTotals
+    ? ((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100
+    : null
+  const portfolioDescriptor = comparableTotals
+    ? `<span class="metric-change ${portfolioChangeValue && portfolioChangeValue < 0 ? 'negative' : 'positive'}">${formatPercentageChange(portfolioChangeValue ?? 0)} względem kapitału</span>`
+    : `<span class="metric-change neutral">${activePositionsLabel}</span>`
+  const investedDescriptor =
+    positions.length > 0 ? activePositionsLabel : 'Brak danych o kapitale'
+  return `
+    <main class="page">
+      <section class="hero">
+        <h1 class="app-name">
+          <span class="app-name-primary">Panel</span>
+          <span class="app-name-secondary">Analityczny</span>
+        </h1>
+        <p class="hero-subtitle">Techniczne spojrzenie na rynek</p>
+        <p class="lede">
+          Nasze decyzje inwestycyjne opierają się na precyzji analizy technicznej i
+          dogłębnym zrozumieniu mechanizmów rynku. Nieustannie śledzimy zmienność,
+          kierunki przepływu kapitału i poziom ryzyka, by budować portfel odporny na
+          wahania. Stawiamy na strategię, nie przypadek – to fundament naszego
+          podejścia do inwestowania. Nasze analizy mają charakter informacyjny i nie
+          stanowią rekomendacji inwestycyjnych; pokazują wyłącznie naszą metodykę
+          działania, a nie zachętę do uczestnictwa.
+        </p>
+      </section>
+
+      <section class="portfolio">
+        <div class="section-header">
+          <h2>Stan portfela</h2>
+        </div>
+        <div class="portfolio-overview">
+          <article class="metric">
+            <span class="label">Wartość portfela</span>
+            <span class="value">${portfolioValueMetric.label}</span>
+            <span class="change">${portfolioDescriptor}</span>
+          </article>
+          <article class="metric">
+            <span class="label">Kapitał zainwestowany</span>
+            <span class="value">${investedCapitalMetric.label}</span>
+            <span class="change neutral">${investedDescriptor}</span>
+          </article>
+        </div>
+        <div class="portfolio-filters">
+          <label for="category-filter">Filtr kategorii</label>
+          <select id="category-filter">
+            <option value="all">Wszystkie</option>
+            <option value="stock">Akcje</option>
+            <option value="commodity">Surowiec</option>
+            <option value="hedge">Zabezpieczenie</option>
+            <option value="cash">Gotówka</option>
+            <option value="cryptocurrency">Kryptowaluty</option>
+          </select>
+        </div>
+        <div class="portfolio-table-wrapper">
+          <table class="portfolio-table" aria-describedby="category-filter">
+            <thead>
+              <tr>
+                <th>Pozycja</th>
+                <th>Kategoria</th>
+                <th>Cena zakupu</th>
+                <th>Wartość pozycji</th>
+                <th>Aktualny kurs</th>
+                <th>Zwrot</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                positions
+                  .map(
+                    position => `
+                <tr data-category="${position.category}">
+                  <td>
+                    <div class="portfolio-name">
+                      <span class="portfolio-name-primary">${position.name}</span>
+                      <span class="position-type-badge ${position.positionType}">
+                        ${formatPositionType(position.positionType)}
+                      </span>
+                    </div>
+                  </td>
+                  <td>${position.categoryName}</td>
+                  <td>${position.purchasePrice}</td>
+                  <td>${position.positionTotalValueLabel ?? '—'}</td>
+                  <td>${position.currentPrice}</td>
+                  <td class="${
+                    position.returnValue > 0
+                      ? 'positive'
+                      : position.returnValue < 0
+                        ? 'negative'
+                        : 'neutral'
+                  }">${position.return}</td>
+                  <td>
+                    <a class="details-link" href="#/position/${position.id}" data-position-id="${position.id}">Szczegóły</a>
+                  </td>
+                </tr>
+              `,
+                  )
+                  .join('')
+              }
+              ${positions.length === 0 ? '<tr class="empty"><td colspan="7">Brak pozycji w portfelu</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="ideas-section" id="ideas-section">
+        <div class="section-header">
+          <h2>Pomysły</h2>
+          <p>Najnowsze pomysły inwestycyjne</p>
+        </div>
+        <div class="ideas-loading" id="ideas-loading">Ładowanie pomysłów...</div>
+        <div class="ideas-grid" id="ideas-grid" hidden></div>
+        <p class="empty-state" id="ideas-empty" hidden>Brak dostępnych pomysłów.</p>
+      </section>
+
+      <section class="recent-closures">
+        <div class="section-header">
+          <h2>Ostatnio zamknięte pozycje</h2>
+          <p>Najważniejsze dane z pięciu ostatnich zamknięć</p>
+        </div>
+        ${
+          closedPositions.length
+            ? `<div class="recent-closures-grid">
+          ${closedPositions
+            .slice(0, 5)
+            .map(
+              position => `
+            <article class="recent-closure-card">
+              <header>
+                <div>
+                  <h3>${position.name}</h3>
+                  <span class="position-type-badge ${position.positionType}">${formatPositionType(position.positionType)}</span>
+                </div>
+                <time datetime="${position.analysis?.positionClosedDate ?? ''}">
+                  ${position.analysis?.positionClosedDate
+                    ? new Date(position.analysis.positionClosedDate).toLocaleDateString('pl-PL')
+                    : 'Brak daty'}
+                </time>
+              </header>
+              <dl>
+                <div>
+                  <dt>Zwrot</dt>
+                  <dd class="${
+                    position.returnValue > 0 ? 'positive' : position.returnValue < 0 ? 'negative' : 'neutral'
+                  }">${position.return}</dd>
+                </div>
+                <div>
+                  <dt>Kapitał</dt>
+                  <dd>${position.positionTotalValueLabel ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>Powód zamknięcia</dt>
+                  <dd>${position.analysis?.positionClosedNote ?? 'Brak notatki'}</dd>
+                </div>
+              </dl>
+              <footer>
+                <a class="details-link" href="#/position/${position.id}" data-position-id="${position.id}">Zobacz szczegóły</a>
+              </footer>
+            </article>
+          `,
+            )
+            .join('')}
+        </div>`
+            : '<p class="empty-state">Brak zamkniętych pozycji.</p>'
+        }
+      </section>
+    </main>
+
+    <footer class="footer">
+      <small>© ${new Date().getFullYear()} Wszystkie prawa zastrzeżone.</small>
+      <nav>
+        <a href="#/status">Status projektu</a>
+        <a href="#">Dokumentacja</a>
+        <a href="#">Kontakt</a>
+        <a href="#/login">Logowanie</a>
+      </nav>
+    </footer>
+  `
+}
+
+export function setupHomeHandlers(): void {
+  const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter')
+  const portfolioRows = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>('.portfolio-table tbody tr'),
+  )
+
+  categoryFilter?.addEventListener('change', event => {
+    const value = (event.target as HTMLSelectElement).value
+
+    portfolioRows.forEach(row => {
+      if (value === 'all') {
+        row.style.display = ''
+        return
+      }
+
+      row.style.display = row.dataset.category === value ? '' : 'none'
+    })
+  })
+
+  // Load ideas after DOM is ready
+  setTimeout(() => {
+    void loadIdeas()
+  }, 0)
+}
+
+async function loadIdeas(): Promise<void> {
+  const loadingEl = document.getElementById('ideas-loading')
+  const gridEl = document.getElementById('ideas-grid')
+  const emptyEl = document.getElementById('ideas-empty')
+
+  if (!loadingEl || !gridEl || !emptyEl) {
+    return
+  }
+
+  try {
+    const ideas = await fetchIdeas(10)
+    loadingEl.hidden = true
+
+    if (!ideas || ideas.length === 0) {
+      emptyEl.hidden = false
+      return
+    }
+
+    gridEl.hidden = false
+    emptyEl.hidden = true
+
+    gridEl.innerHTML = ideas
+      .map(
+        idea => `
+      <article class="idea-card">
+        ${idea.tradingviewImage ? `<img src="${idea.tradingviewImage}" alt="Wykres ${idea.symbol}" class="idea-image" />` : ''}
+        <div class="idea-content">
+          <header>
+            <h3>${escapeHtml(idea.symbol)}</h3>
+            <span class="idea-market">${escapeHtml(idea.market)}</span>
+          </header>
+          <dl class="idea-details">
+            <div>
+              <dt>Rynek</dt>
+              <dd>${escapeHtml(idea.market)}</dd>
+            </div>
+            <div>
+              <dt>Wejście</dt>
+              <dd>${escapeHtml(idea.entryLevel)}</dd>
+            </div>
+            <div>
+              <dt>Stop Loss</dt>
+              <dd>${escapeHtml(idea.stopLoss)}</dd>
+            </div>
+            ${idea.targetTp ? `<div><dt>TP</dt><dd>${escapeHtml(idea.targetTp)}</dd></div>` : ''}
+          </dl>
+          <p class="idea-description">${escapeHtml(idea.description.slice(0, 150))}${idea.description.length > 150 ? '...' : ''}</p>
+          <footer>
+            <time datetime="${idea.publishedOn}">${new Date(idea.publishedOn).toLocaleDateString('pl-PL')}</time>
+            <a class="details-link" href="#/idea/${idea.id}" data-idea-id="${idea.id}">Zobacz szczegóły</a>
+          </footer>
+        </div>
+      </article>
+    `,
+      )
+      .join('')
+  } catch (error) {
+    console.error('Failed to load ideas:', error)
+    loadingEl.hidden = true
+    emptyEl.hidden = false
+    emptyEl.textContent = 'Nie udało się załadować pomysłów.'
+  }
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
+function formatPositionType(positionType: 'long' | 'short'): string {
+  return positionType === 'short' ? 'SHORT' : 'LONG'
+}
+
