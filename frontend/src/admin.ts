@@ -11,7 +11,7 @@ import {
   replacePositions,
   removePositionFromStore,
 } from './store'
-import type { Position, StatusUpdate, TechnicalAnalysis } from './types'
+import type { Idea, Position, StatusUpdate, TechnicalAnalysis } from './types'
 import {
   createNews,
   fetchStatusUpdates,
@@ -24,6 +24,11 @@ import {
   deletePosition as deletePortfolioPosition,
   updatePositionMetadata,
   resolveQuoteSymbol as resolveQuoteSymbolApi,
+  fetchIdeas,
+  fetchIdea,
+  createIdea,
+  updateIdea,
+  deleteIdea,
 } from './api'
 
 const categoryOptions = [
@@ -43,6 +48,7 @@ const sidebarSections = [
   { id: 'create', label: 'Dodaj nową pozycję' },
   { id: 'analyses', label: 'Edycja analiz' },
   { id: 'news', label: 'Aktualności' },
+  { id: 'ideas', label: 'Pomysły' },
 ] as const
 
 type CategoryOption = (typeof categoryOptions)[number]['value']
@@ -68,6 +74,11 @@ let modalElement: HTMLDivElement | null = null
 let modalForm: HTMLFormElement | null = null
 let modalCloseBtn: HTMLButtonElement | null = null
 let modalCancelBtn: HTMLButtonElement | null = null
+
+let ideaModalElement: HTMLDivElement | null = null
+let ideaModalForm: HTMLFormElement | null = null
+let ideaModalCloseBtn: HTMLButtonElement | null = null
+let ideaModalCancelBtn: HTMLButtonElement | null = null
 
 function getStoredActiveSection(): SectionId {
   if (typeof window === 'undefined') {
@@ -334,6 +345,67 @@ export function renderAdmin(): string {
             </div>
           </div>
         </section>
+
+        <section class="admin-section ${activeSection === 'ideas' ? 'active' : ''}" data-section="ideas">
+          <div class="section-header">
+            <h2>Zarządzanie pomysłami</h2>
+            <p>Dodaj i edytuj pomysły inwestycyjne.</p>
+          </div>
+          <form class="admin-form" id="create-idea-form">
+            <div class="form-grid">
+              <label class="form-field">
+                <span>Symbol</span>
+                <input type="text" name="symbol" required placeholder="np. BTCUSDT" />
+              </label>
+              <label class="form-field">
+                <span>Rynek</span>
+                <input type="text" name="market" required placeholder="np. Binance" />
+              </label>
+              <label class="form-field">
+                <span>Strategia wejścia</span>
+                <select name="entryStrategy">
+                  <option value="">—</option>
+                  <option value="level">Wejście z poziomu</option>
+                  <option value="candlePattern">Formacja świecowa</option>
+                  <option value="formationRetest">Retest formacji</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label class="form-field">
+                <span>Wejście (poziom)</span>
+                <input type="text" name="entryLevel" required placeholder="np. 45000" />
+              </label>
+              <label class="form-field">
+                <span>Stop Loss</span>
+                <input type="text" name="stopLoss" required placeholder="np. 44000" />
+              </label>
+              <label class="form-field">
+                <span>Target TP</span>
+                <input type="text" name="targetTp" placeholder="np. 48000" />
+              </label>
+            </div>
+            <label class="form-field">
+              <span>Opis</span>
+              <textarea name="description" rows="5" required placeholder="Szczegółowy opis pomysłu inwestycyjnego..."></textarea>
+            </label>
+            <label class="form-field">
+              <span>Obraz z TradingView</span>
+              <input type="file" name="tradingviewImage" accept="image/*" />
+              <small class="field-hint">Wybierz obraz z komputera</small>
+            </label>
+            <div class="admin-form-actions">
+              <button type="submit" class="primary">Dodaj pomysł</button>
+            </div>
+          </form>
+
+          <div class="admin-ideas-preview">
+            <h3>Ostatnie pomysły</h3>
+            <div class="admin-ideas-wrapper" id="admin-ideas-wrapper">
+              <p class="loading">Ładowanie pomysłów...</p>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 
@@ -375,6 +447,64 @@ export function renderAdmin(): string {
       </div>
     </div>
 
+    <div class="admin-idea-modal" id="admin-idea-modal" hidden>
+      <div class="admin-idea-modal-content">
+        <header>
+          <h3>Edytuj pomysł</h3>
+          <button type="button" class="admin-idea-modal-close" id="admin-idea-modal-close" aria-label="Zamknij">×</button>
+        </header>
+        <form id="admin-idea-edit-form">
+          <input type="hidden" name="id" />
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Symbol</span>
+              <input type="text" name="symbol" required />
+            </label>
+            <label class="form-field">
+              <span>Rynek</span>
+              <input type="text" name="market" required />
+            </label>
+            <label class="form-field">
+              <span>Strategia wejścia</span>
+              <select name="entryStrategy">
+                <option value="">—</option>
+                <option value="level">Wejście z poziomu</option>
+                <option value="candlePattern">Formacja świecowa</option>
+                <option value="formationRetest">Retest formacji</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Wejście (poziom)</span>
+              <input type="text" name="entryLevel" required />
+            </label>
+            <label class="form-field">
+              <span>Stop Loss</span>
+              <input type="text" name="stopLoss" required />
+            </label>
+            <label class="form-field">
+              <span>Target TP</span>
+              <input type="text" name="targetTp" />
+            </label>
+          </div>
+          <label class="form-field">
+            <span>Opis</span>
+            <textarea name="description" rows="5" required></textarea>
+          </label>
+          <label class="form-field">
+            <span>Obraz z TradingView</span>
+            <input type="file" name="tradingviewImage" accept="image/*" />
+            <small class="field-hint">Zostaw puste, aby zachować obecny obraz</small>
+          </label>
+          <div class="admin-form-actions modal-actions">
+            <button type="button" class="secondary" id="admin-idea-modal-cancel">Anuluj</button>
+            <button type="submit" class="primary">Zapisz zmiany</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   `
 }
 
@@ -393,6 +523,10 @@ export function setupAdminHandlers(): void {
   refreshAdminNewsPreview()
   bindAdminNewsActions()
   initAdminNewsModal()
+  setupIdeasForm()
+  refreshAdminIdeasPreview()
+  bindAdminIdeasActions()
+  initAdminIdeaModal()
   if (!hasInitialNewsSync) {
     void syncStatusUpdatesFromApi()
   }
@@ -2019,4 +2153,155 @@ function getPositionValueLabel(position: Position): string | null {
 function renderPositionValueBadge(position: Position): string {
   const label = getPositionValueLabel(position)
   return label ? `<span class="position-value-badge">Wartość: ${label}</span>` : ''
+}
+
+function setupIdeasForm(): void {
+  const form = document.querySelector<HTMLFormElement>('#create-idea-form')
+  if (!form) {
+    return
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault()
+    const formData = new FormData(form)
+    const symbol = String(formData.get('symbol') ?? '').trim()
+    const market = String(formData.get('market') ?? '').trim()
+    const entryLevel = String(formData.get('entryLevel') ?? '').trim()
+    const stopLoss = String(formData.get('stopLoss') ?? '').trim()
+    const description = String(formData.get('description') ?? '').trim()
+    const targetTp = String(formData.get('targetTp') ?? '').trim() || null
+    const entryStrategy = String(formData.get('entryStrategy') ?? '').trim() || null
+    const imageFile = formData.get('tradingviewImage') as File | null
+
+    if (!symbol || !market || !entryLevel || !stopLoss || !description) {
+      alert('Wypełnij wszystkie wymagane pola.')
+      return
+    }
+
+    const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+    if (submitButton) {
+      submitButton.disabled = true
+      submitButton.textContent = 'Dodawanie...'
+    }
+
+    try {
+      let tradingviewImage: string | null = null
+      if (imageFile && imageFile.size > 0) {
+        tradingviewImage = await readFileAsDataURL(imageFile)
+      }
+
+      await createIdea({
+        symbol,
+        market,
+        entryLevel,
+        stopLoss,
+        description,
+        targetTp,
+        entryStrategy: entryStrategy as Idea['entryStrategy'] | null,
+        tradingviewImage,
+      })
+      form.reset()
+      await refreshAdminIdeasPreview()
+      alert('Pomysł został dodany pomyślnie.')
+    } catch (error) {
+      console.error('Failed to create idea:', error)
+      alert(error instanceof Error ? error.message : 'Nie udało się dodać pomysłu.')
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Dodaj pomysł'
+      }
+    }
+  })
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
+function renderAdminIdeasList(ideas: Idea[]): string {
+  if (!ideas || ideas.length === 0) {
+    return '<p class="empty-state">Brak pomysłów.</p>'
+  }
+
+  return `
+    <ul class="admin-ideas-list">
+      ${ideas
+        .map(
+          idea => `
+        <li class="admin-idea-item">
+          <div class="admin-idea-header">
+            <div>
+              <strong>${escapeHtml(idea.symbol)}</strong>
+              <span class="idea-market">${escapeHtml(idea.market)}</span>
+            </div>
+            <time datetime="${idea.publishedOn}">${new Date(idea.publishedOn).toLocaleDateString('pl-PL')}</time>
+          </div>
+          <div class="admin-idea-details">
+            <span>Wejście: ${escapeHtml(idea.entryLevel)}</span>
+            <span>SL: ${escapeHtml(idea.stopLoss)}</span>
+            ${idea.targetTp ? `<span>TP: ${escapeHtml(idea.targetTp)}</span>` : ''}
+          </div>
+          <div class="admin-idea-actions">
+            <button type="button" class="edit-button" data-idea-id="${idea.id}" aria-label="Edytuj pomysł">Edytuj</button>
+            <button type="button" class="delete-button" data-idea-id="${idea.id}" aria-label="Usuń pomysł">Usuń</button>
+          </div>
+        </li>
+      `,
+        )
+        .join('')}
+    </ul>
+  `
+}
+
+async function refreshAdminIdeasPreview(): Promise<void> {
+  const wrapper = document.getElementById('admin-ideas-wrapper')
+  if (!wrapper) {
+    return
+  }
+
+  try {
+    const ideas = await fetchIdeas(20)
+    wrapper.innerHTML = renderAdminIdeasList(ideas)
+    bindAdminIdeasActions()
+  } catch (error) {
+    console.error('Failed to refresh ideas preview:', error)
+    wrapper.innerHTML = '<p class="error">Nie udało się załadować pomysłów.</p>'
+  }
+}
+
+function bindAdminIdeasActions(): void {
+  const deleteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.delete-button[data-idea-id]'))
+  deleteButtons.forEach(button => {
+    button.removeEventListener('click', handleDeleteIdea as EventListener)
+    button.addEventListener('click', handleDeleteIdea as EventListener)
+  })
+
+  const editButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.edit-button[data-idea-id]'))
+  editButtons.forEach(button => {
+    button.removeEventListener('click', handleEditIdea as EventListener)
+    button.addEventListener('click', handleEditIdea as EventListener)
+  })
+}
+
+async function handleDeleteIdea(event: Event): Promise<void> {
+  const target = event.target as HTMLButtonElement
+  const ideaId = target.dataset.ideaId
+  if (!ideaId) {
+    return
+  }
+
+  if (!confirm('Czy na pewno chcesz usunąć ten pomysł?')) {
+    return
+  }
+
+  try {
+    await deleteIdea(ideaId)
+    await refreshAdminIdeasPreview()
+  } catch (error) {
+    console.error('Failed to delete idea:', error)
+    alert(error instanceof Error ? error.message : 'Nie udało się usunąć pomysłu.')
+  }
 }
