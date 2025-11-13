@@ -16,6 +16,22 @@ const {
 } = require('./lib/positions')
 const { fetchTradingViewQuotes } = require('./lib/tradingview')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
+const {
+  createIdea,
+  listIdeas,
+  getIdeaById,
+  updateIdea,
+  deleteIdea,
+  ANALYSIS_ENTRY_STRATEGY_VALUES: IDEAS_ENTRY_STRATEGY_VALUES,
+} = require('./lib/ideas')
+const {
+  createUser,
+  getUserById,
+  listUsers,
+  deleteUser,
+  authenticateUser,
+  ensureInitialUser,
+} = require('./lib/users')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -346,6 +362,279 @@ app.delete('/api/news/:id', async (req, res) => {
   }
 })
 
+app.post('/api/ideas', async (req, res) => {
+  const { symbol, market, entryLevel, stopLoss, description, targetTp, entryStrategy, tradingviewImage } =
+    req.body ?? {}
+
+  if (!symbol || typeof symbol !== 'string') {
+    return res.status(400).json({ error: 'Symbol is required' })
+  }
+  if (!market || typeof market !== 'string') {
+    return res.status(400).json({ error: 'Market is required' })
+  }
+  if (!entryLevel || typeof entryLevel !== 'string') {
+    return res.status(400).json({ error: 'Entry level is required' })
+  }
+  if (!stopLoss || typeof stopLoss !== 'string') {
+    return res.status(400).json({ error: 'Stop loss is required' })
+  }
+  if (!description || typeof description !== 'string') {
+    return res.status(400).json({ error: 'Description is required' })
+  }
+
+  try {
+    const idea = await createIdea({
+      symbol,
+      market,
+      entryLevel,
+      stopLoss,
+      description,
+      targetTp,
+      entryStrategy,
+      tradingviewImage,
+    })
+    res.status(201).json({ data: idea })
+  } catch (error) {
+    if (error?.code === 'INVALID_ENTRY_STRATEGY') {
+      return res.status(400).json({
+        error: 'Invalid entry strategy value',
+        allowed: IDEAS_ENTRY_STRATEGY_VALUES,
+      })
+    }
+
+    console.error('Failed to create idea:', error)
+    res.status(500).json({
+      error: 'Failed to create idea',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.get('/api/ideas', async (req, res) => {
+  const limitParam = req.query.limit
+  const limit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : 50
+
+  try {
+    const data = await listIdeas(Number.isNaN(limit) || limit <= 0 ? 50 : Math.min(limit, 100))
+    res.json({ data })
+  } catch (error) {
+    console.error('Failed to fetch ideas:', error)
+    res.status(500).json({
+      error: 'Failed to fetch ideas',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.get('/api/ideas/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing idea id' })
+    return
+  }
+
+  try {
+    const idea = await getIdeaById(id)
+    if (!idea) {
+      res.status(404).json({ error: 'Idea not found' })
+      return
+    }
+    res.json({ data: idea })
+  } catch (error) {
+    console.error('Failed to fetch idea:', error)
+    res.status(500).json({
+      error: 'Failed to fetch idea',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.put('/api/ideas/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing idea id' })
+    return
+  }
+
+  const {
+    symbol,
+    market,
+    entryLevel,
+    stopLoss,
+    description,
+    targetTp,
+    entryStrategy,
+    tradingviewImage,
+  } = req.body ?? {}
+
+  try {
+    const updated = await updateIdea(id, {
+      symbol,
+      market,
+      entryLevel,
+      stopLoss,
+      description,
+      targetTp,
+      entryStrategy,
+      tradingviewImage,
+    })
+    if (!updated) {
+      res.status(404).json({ error: 'Idea not found' })
+      return
+    }
+    res.json({ data: updated })
+  } catch (error) {
+    if (error?.code === 'INVALID_ENTRY_STRATEGY') {
+      res.status(400).json({ error: 'Invalid entry strategy value', allowed: IDEAS_ENTRY_STRATEGY_VALUES })
+      return
+    }
+
+    console.error('Failed to update idea:', error)
+    res.status(500).json({
+      error: 'Failed to update idea',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.delete('/api/ideas/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing idea id' })
+    return
+  }
+  try {
+    const deleted = await deleteIdea(id)
+    if (!deleted) {
+      res.status(404).json({ error: 'Idea not found' })
+      return
+    }
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete idea:', error)
+    res.status(500).json({
+      error: 'Failed to delete idea',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body ?? {}
+
+  if (!username || typeof username !== 'string') {
+    return res.status(400).json({ error: 'Username is required' })
+  }
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required' })
+  }
+
+  try {
+    const user = await authenticateUser(username, password)
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password' })
+    }
+
+    res.json({ data: user })
+  } catch (error) {
+    console.error('Failed to authenticate user:', error)
+    res.status(500).json({
+      error: 'Failed to authenticate',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/users', async (req, res) => {
+  const { username, password } = req.body ?? {}
+
+  if (!username || typeof username !== 'string') {
+    return res.status(400).json({ error: 'Username is required' })
+  }
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required' })
+  }
+
+  try {
+    const user = await createUser({ username, password })
+    res.status(201).json({ data: user })
+  } catch (error) {
+    if (error?.code === 'USERNAME_EXISTS') {
+      return res.status(409).json({ error: 'Username already exists' })
+    }
+    if (error?.code === 'INVALID_USERNAME' || error?.code === 'INVALID_PASSWORD') {
+      return res.status(400).json({ error: error.message })
+    }
+
+    console.error('Failed to create user:', error)
+    res.status(500).json({
+      error: 'Failed to create user',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.get('/api/users', async (req, res) => {
+  const limitParam = req.query.limit
+  const limit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : 50
+
+  try {
+    const data = await listUsers(Number.isNaN(limit) || limit <= 0 ? 50 : Math.min(limit, 100))
+    res.json({ data })
+  } catch (error) {
+    console.error('Failed to fetch users:', error)
+    res.status(500).json({
+      error: 'Failed to fetch users',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.get('/api/users/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing user id' })
+    return
+  }
+
+  try {
+    const user = await getUserById(id)
+    if (!user) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+    res.json({ data: user })
+  } catch (error) {
+    console.error('Failed to fetch user:', error)
+    res.status(500).json({
+      error: 'Failed to fetch user',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing user id' })
+    return
+  }
+  try {
+    const deleted = await deleteUser(id)
+    if (!deleted) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete user:', error)
+    res.status(500).json({
+      error: 'Failed to delete user',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
 app.put('/api/positions/:id/analysis', async (req, res) => {
   const { id } = req.params
   if (!id) {
@@ -486,6 +775,10 @@ const isTestEnv = process.env.NODE_ENV === 'test'
 
 if (!isTestEnv) {
   ensureSchema()
+    .then(() => {
+      console.log('Database schema initialized')
+      return ensureInitialUser()
+    })
     .then(() => {
       app.listen(PORT, () => {
         console.log(`PortiX backend listening on port ${PORT}`)

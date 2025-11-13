@@ -306,14 +306,60 @@ async function ensurePortfolioTables() {
   }
 }
 
+async function ensureIdeasTable() {
+  await ensurePgcryptoExtension()
+  await pool.query(`
+    create table if not exists portfolio_ideas (
+      id uuid primary key default gen_random_uuid(),
+      symbol text not null,
+      name text not null,
+      market text not null,
+      entry_level text not null,
+      stop_loss text not null,
+      description text not null,
+      target_tp text,
+      entry_strategy text check (entry_strategy is null or entry_strategy = any (ARRAY[${ANALYSIS_ENTRY_STRATEGY_ARRAY_SQL}]::text[])),
+      tradingview_image text,
+      published_on date not null default current_date,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `)
+
+  await pool.query(`
+    create index if not exists portfolio_ideas_published_on_idx on portfolio_ideas (published_on desc)
+  `)
+}
+
+async function ensureUsersTable() {
+  await ensurePgcryptoExtension()
+  await pool.query(`
+    create table if not exists users (
+      id uuid primary key default gen_random_uuid(),
+      username text not null unique,
+      password_hash text not null,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `)
+
+  await pool.query(`
+    create index if not exists users_username_idx on users (username)
+  `)
+}
+
 async function ensureSchema() {
   await ensureNewsTable()
   await ensurePortfolioTables()
+  await ensureIdeasTable()
+  await ensureUsersTable()
 }
 
 module.exports = {
   ensureNewsTable,
   ensurePortfolioTables,
+  ensureIdeasTable,
+  ensureUsersTable,
   ensureSchema,
   IMPORTANCE_VALUES,
   POSITION_CATEGORY_VALUES,
