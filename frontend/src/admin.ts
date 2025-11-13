@@ -45,10 +45,10 @@ const positionTypeOptions = [
 ] as const
 
 const sidebarSections = [
-  { id: 'create', label: 'Dodaj nową pozycję' },
-  { id: 'analyses', label: 'Edycja analiz' },
-  { id: 'news', label: 'Aktualności' },
-  { id: 'ideas', label: 'Pomysły' },
+  { id: 'create', label: 'Nowa pozycja', icon: '➕' },
+  { id: 'analyses', label: 'Edycja analiz', icon: '📊' },
+  { id: 'news', label: 'Aktualności', icon: '📰' },
+  { id: 'ideas', label: 'Pomysły', icon: '💡' },
 ] as const
 
 type CategoryOption = (typeof categoryOptions)[number]['value']
@@ -130,7 +130,8 @@ export function renderAdmin(): string {
                       ? 'active'
                       : ''
                 }" data-target="${section.id}">
-                  ${section.label}
+                  <span class="admin-tab-icon">${section.icon}</span>
+                  <span class="admin-tab-label">${section.label}</span>
                 </button>
               `,
             )
@@ -144,17 +145,19 @@ export function renderAdmin(): string {
       <section class="admin-content">
         <section class="admin-section ${activeSection === 'create' ? 'active' : ''}" data-section="create">
           <div class="section-header">
-            <h2>Dodaj nową pozycję</h2>
+            <h2>Nowa pozycja</h2>
             <p>Uzupełnij podstawowe dane pozycji oraz scenariusz analizy technicznej.</p>
           </div>
           <form class="admin-form" id="create-position-form">
             <fieldset class="admin-form-fieldset">
               <legend>Dane pozycji</legend>
               <div class="form-grid columns-3">
-                <label class="form-field">
+                <label class="form-field with-tooltip">
                   <span>Symbol</span>
                   <input type="text" name="symbol" required placeholder="np. NDX" />
-                  <small class="field-hint">Symbol kursu zostanie dobrany automatycznie przy zapisie.</small>
+                  <div class="form-tooltip">
+                    Symbol kursu zostanie dobrany automatycznie przy zapisie.
+                  </div>
                 </label>
                 <label class="form-field">
                   <span>Waluta transakcji</span>
@@ -1160,54 +1163,6 @@ function bindAnalysisForm(form: HTMLFormElement) {
     }
   })
 
-  const deleteButton = form.querySelector<HTMLButtonElement>('.delete-analysis-button')
-  deleteButton?.addEventListener('click', async event => {
-    event.preventDefault()
-    const currentPositionId = form.dataset.positionId ?? positionId
-    const currentDatabaseId = form.dataset.databaseId ?? databaseId
-    const apiTargetId = currentDatabaseId || currentPositionId
-    if (!currentPositionId) {
-      return
-    }
-
-    const shouldDelete = window.confirm('Czy na pewno chcesz usunąć tę analizę?')
-    if (!shouldDelete) {
-      return
-    }
-
-    const originalLabel = deleteButton.textContent
-
-    try {
-      deleteButton.disabled = true
-      deleteButton.textContent = 'Usuwanie...'
-
-      const updatedPosition = await removePositionAnalysis(apiTargetId)
-      if (updatedPosition) {
-        applyPositionUpdate(updatedPosition)
-        if (updatedPosition.databaseId) {
-          form.dataset.databaseId = updatedPosition.databaseId
-        }
-      }
-
-      await refreshPositionsFromBackend()
-      setStoredActiveAnalysisPosition(currentPositionId)
-      removeTechnicalAnalysis(currentPositionId)
-
-      window.requestAnimationFrame(() => {
-        renderAnalysisEditor(currentPositionId)
-      })
-
-      alert('Analiza została usunięta.')
-    } catch (error) {
-      console.error('Nie udało się usunąć analizy:', error)
-      const message = error instanceof Error ? error.message : 'Nie udało się usunąć analizy.'
-      alert(message)
-    } finally {
-      deleteButton.disabled = false
-      deleteButton.textContent = originalLabel ?? 'Usuń analizę'
-    }
-  })
-
   const deletePositionButton = form.querySelector<HTMLButtonElement>('.delete-position-button')
   deletePositionButton?.addEventListener('click', async event => {
     event.preventDefault()
@@ -1626,25 +1581,6 @@ function renderAnalysisForm(positionId: string): string {
             <option value="formationRetest" ${analysis.entryStrategy === 'formationRetest' ? 'selected' : ''}>Retest formacji</option>
           </select>
         </label>
-        <div class="form-field quote-symbol-field">
-          <span>Źródło kursu</span>
-          <div class="quote-symbol-display">
-            <span
-              class="quote-symbol-text ${position.quoteSymbol ? '' : 'muted'}"
-              data-quote-symbol-display
-            >
-              ${position.quoteSymbol ?? 'Automatyczne'}
-            </span>
-            <div class="quote-symbol-actions">
-              <button type="button" class="link-button regenerate-quote-symbol">Ustaw automatycznie</button>
-              <button type="button" class="link-button edit-quote-symbol">Edytuj ręcznie</button>
-            </div>
-          </div>
-          <input type="hidden" name="quoteSymbol" value="${position.quoteSymbol ?? ''}" />
-          <p class="form-hint">
-            Symbol do pobierania kursu jest dobierany automatycznie na podstawie symbolu pozycji oraz kategorii.
-          </p>
-        </div>
         <label class="form-field">
           <span>TP1</span>
           <input type="text" name="tp1" value="${targets.tp1 ?? ''}" placeholder="np. 450 USD" />
@@ -1674,6 +1610,33 @@ function renderAnalysisForm(positionId: string): string {
             </div>`
           : ''
       }
+      <div class="form-field quote-symbol-field with-tooltip">
+        <span>Źródło kursu</span>
+        <div class="quote-symbol-display">
+          <div class="quote-symbol-value">
+            <span
+              class="quote-symbol-text ${position.quoteSymbol ? '' : 'muted'}"
+              data-quote-symbol-display
+            >
+              ${position.quoteSymbol ?? 'Automatyczne'}
+            </span>
+            <button type="button" class="quote-symbol-info" aria-label="Informacje o źródle kursu">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 6V8M8 10H8.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="quote-symbol-actions">
+            <button type="button" class="secondary small regenerate-quote-symbol">Ustaw automatycznie</button>
+            <button type="button" class="secondary small edit-quote-symbol">Edytuj ręcznie</button>
+          </div>
+        </div>
+        <input type="hidden" name="quoteSymbol" value="${position.quoteSymbol ?? ''}" />
+        <div class="form-tooltip">
+          Symbol do pobierania kursu jest dobierany automatycznie na podstawie symbolu pozycji oraz kategorii.
+        </div>
+      </div>
       <label class="form-field">
         <span>Podsumowanie</span>
         <textarea name="summary" rows="4" required>${analysis.summary ?? ''}</textarea>
@@ -1737,7 +1700,6 @@ function renderAnalysisForm(positionId: string): string {
           <button type="button" class="secondary preview-analysis-button">Podgląd widoku</button>
         </div>
         <div class="actions-right">
-          <button type="button" class="secondary danger delete-analysis-button">Usuń analizę</button>
           <button type="button" class="secondary danger delete-position-button">Usuń pozycję</button>
           <button type="submit" class="secondary">Zapisz zmiany</button>
         </div>
@@ -2231,22 +2193,23 @@ function renderAdminIdeasList(ideas: Idea[]): string {
       ${ideas
         .map(
           idea => `
-        <li class="admin-idea-item">
-          <div class="admin-idea-header">
-            <div>
-              <strong>${escapeHtml(idea.symbol)}</strong>
-              <span class="idea-market">${escapeHtml(idea.market)}</span>
+        <li>
+          <div class="admin-idea-item">
+            <div class="admin-idea-header">
+              <div class="admin-idea-title">
+                <strong>${escapeHtml(idea.symbol)}:${escapeHtml(idea.market)}</strong>
+                <time datetime="${idea.publishedOn}" class="admin-idea-date">${new Date(idea.publishedOn).toLocaleDateString('pl-PL')}</time>
+              </div>
             </div>
-            <time datetime="${idea.publishedOn}">${new Date(idea.publishedOn).toLocaleDateString('pl-PL')}</time>
-          </div>
-          <div class="admin-idea-details">
-            <span>Wejście: ${escapeHtml(idea.entryLevel)}</span>
-            <span>SL: ${escapeHtml(idea.stopLoss)}</span>
-            ${idea.targetTp ? `<span>TP: ${escapeHtml(idea.targetTp)}</span>` : ''}
+            <div class="admin-idea-details">
+              <span>Wejście: ${escapeHtml(idea.entryLevel)}</span>
+              <span>SL: ${escapeHtml(idea.stopLoss)}</span>
+              ${idea.targetTp ? `<span>TP: ${escapeHtml(idea.targetTp)}</span>` : ''}
+            </div>
           </div>
           <div class="admin-idea-actions">
-            <button type="button" class="edit-button" data-idea-id="${idea.id}" aria-label="Edytuj pomysł">Edytuj</button>
-            <button type="button" class="delete-button" data-idea-id="${idea.id}" aria-label="Usuń pomysł">Usuń</button>
+            <button type="button" class="admin-news-edit" data-idea-id="${idea.id}" aria-label="Edytuj pomysł">Edytuj</button>
+            <button type="button" class="admin-news-delete" data-idea-id="${idea.id}" aria-label="Usuń pomysł">Usuń</button>
           </div>
         </li>
       `,
@@ -2273,35 +2236,188 @@ async function refreshAdminIdeasPreview(): Promise<void> {
 }
 
 function bindAdminIdeasActions(): void {
-  const deleteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.delete-button[data-idea-id]'))
-  deleteButtons.forEach(button => {
-    button.removeEventListener('click', handleDeleteIdea as EventListener)
-    button.addEventListener('click', handleDeleteIdea as EventListener)
-  })
+  const wrapper = document.querySelector<HTMLDivElement>('#admin-ideas-wrapper')
+  if (!wrapper) {
+    return
+  }
 
-  const editButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.edit-button[data-idea-id]'))
-  editButtons.forEach(button => {
-    button.removeEventListener('click', handleEditIdea as EventListener)
-    button.addEventListener('click', handleEditIdea as EventListener)
+  // Use event delegation like in news section
+  wrapper.addEventListener('click', async event => {
+    const deleteTarget = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-delete[data-idea-id]')
+    if (deleteTarget) {
+      await handleDeleteIdea(deleteTarget)
+      return
+    }
+
+    const editTarget = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.admin-news-edit[data-idea-id]')
+    if (editTarget) {
+      await handleEditIdea(editTarget)
+    }
   })
 }
 
-async function handleDeleteIdea(event: Event): Promise<void> {
-  const target = event.target as HTMLButtonElement
+async function handleDeleteIdea(target: HTMLButtonElement): Promise<void> {
   const ideaId = target.dataset.ideaId
   if (!ideaId) {
     return
   }
 
-  if (!confirm('Czy na pewno chcesz usunąć ten pomysł?')) {
+  const confirmed = window.confirm('Na pewno chcesz usunąć ten pomysł?')
+  if (!confirmed) {
     return
   }
+
+  const originalText = target.textContent
+  target.disabled = true
+  target.textContent = 'Usuwanie...'
 
   try {
     await deleteIdea(ideaId)
     await refreshAdminIdeasPreview()
   } catch (error) {
-    console.error('Failed to delete idea:', error)
-    alert(error instanceof Error ? error.message : 'Nie udało się usunąć pomysłu.')
+    console.error('Nie udało się usunąć pomysłu:', error)
+    const message = error instanceof Error ? error.message : 'Nie udało się usunąć pomysłu.'
+    alert(message)
+  } finally {
+    target.disabled = false
+    target.textContent = originalText ?? 'Usuń'
+  }
+}
+
+async function handleEditIdea(target: HTMLButtonElement): Promise<void> {
+  const ideaId = target.dataset.ideaId
+  if (!ideaId) {
+    return
+  }
+
+  try {
+    const idea = await fetchIdea(ideaId)
+    if (!idea) {
+      alert('Nie znaleziono pomysłu do edycji.')
+      return
+    }
+    openAdminIdeaModal(idea)
+  } catch (error) {
+    console.error('Failed to fetch idea:', error)
+    alert(error instanceof Error ? error.message : 'Nie udało się załadować pomysłu.')
+  }
+}
+
+function initAdminIdeaModal(): void {
+  ideaModalElement = document.querySelector<HTMLDivElement>('#admin-idea-modal')
+  ideaModalForm = document.querySelector<HTMLFormElement>('#admin-idea-edit-form')
+  ideaModalCloseBtn = document.querySelector<HTMLButtonElement>('#admin-idea-modal-close')
+  ideaModalCancelBtn = document.querySelector<HTMLButtonElement>('#admin-idea-modal-cancel')
+
+  if (!ideaModalElement || !ideaModalForm) {
+    return
+  }
+
+  ideaModalForm.addEventListener('submit', async event => {
+    event.preventDefault()
+    const formData = new FormData(ideaModalForm!)
+    const id = formData.get('id') as string
+    if (!id) {
+      alert('Brak identyfikatora pomysłu.')
+      return
+    }
+
+    const symbol = (formData.get('symbol') as string)?.trim()
+    const market = (formData.get('market') as string)?.trim()
+    const entryLevel = (formData.get('entryLevel') as string)?.trim()
+    const stopLoss = (formData.get('stopLoss') as string)?.trim()
+    const description = (formData.get('description') as string)?.trim()
+    const targetTp = (formData.get('targetTp') as string)?.trim() || null
+    const entryStrategy = (formData.get('entryStrategy') as string)?.trim() || null
+    const imageFile = formData.get('tradingviewImage') as File | null
+
+    if (!symbol || !market || !entryLevel || !stopLoss || !description) {
+      alert('Uzupełnij wszystkie wymagane pola formularza.')
+      return
+    }
+
+    try {
+      setIdeaModalSubmitting(true)
+      let tradingviewImage: string | null | undefined = undefined
+      if (imageFile && imageFile.size > 0) {
+        tradingviewImage = await readFileAsDataURL(imageFile)
+      }
+
+      const updated = await updateIdea(id, {
+        symbol,
+        market,
+        entryLevel,
+        stopLoss,
+        description,
+        targetTp,
+        entryStrategy: entryStrategy as Idea['entryStrategy'] | null,
+        tradingviewImage,
+      })
+
+      await refreshAdminIdeasPreview()
+      closeAdminIdeaModal()
+    } catch (error) {
+      console.error('Nie udało się zaktualizować pomysłu:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się zaktualizować pomysłu.'
+      alert(message)
+    } finally {
+      setIdeaModalSubmitting(false)
+    }
+  })
+
+  ideaModalCloseBtn?.addEventListener('click', () => closeAdminIdeaModal())
+  ideaModalCancelBtn?.addEventListener('click', () => closeAdminIdeaModal())
+
+  ideaModalElement.addEventListener('click', event => {
+    if (event.target === ideaModalElement) {
+      closeAdminIdeaModal()
+    }
+  })
+}
+
+function openAdminIdeaModal(idea: Idea): void {
+  if (!ideaModalElement || !ideaModalForm) {
+    return
+  }
+  ideaModalElement.hidden = false
+  ideaModalElement.classList.add('open')
+  const idInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="id"]')
+  const symbolInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="symbol"]')
+  const marketInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="market"]')
+  const entryLevelInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="entryLevel"]')
+  const stopLossInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="stopLoss"]')
+  const descriptionInput = ideaModalForm.querySelector<HTMLTextAreaElement>('textarea[name="description"]')
+  const targetTpInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="targetTp"]')
+  const entryStrategySelect = ideaModalForm.querySelector<HTMLSelectElement>('select[name="entryStrategy"]')
+  const imageInput = ideaModalForm.querySelector<HTMLInputElement>('input[name="tradingviewImage"]')
+
+  if (idInput) idInput.value = idea.id
+  if (symbolInput) symbolInput.value = idea.symbol
+  if (marketInput) marketInput.value = idea.market
+  if (entryLevelInput) entryLevelInput.value = idea.entryLevel
+  if (stopLossInput) stopLossInput.value = idea.stopLoss
+  if (descriptionInput) descriptionInput.value = idea.description
+  if (targetTpInput) targetTpInput.value = idea.targetTp || ''
+  if (entryStrategySelect) entryStrategySelect.value = idea.entryStrategy || ''
+  if (imageInput) imageInput.value = ''
+}
+
+function closeAdminIdeaModal(): void {
+  if (!ideaModalElement || !ideaModalForm) {
+    return
+  }
+  ideaModalElement.classList.remove('open')
+  ideaModalElement.hidden = true
+  ideaModalForm.reset()
+}
+
+function setIdeaModalSubmitting(submitting: boolean): void {
+  if (!ideaModalForm) {
+    return
+  }
+  const submitButton = ideaModalForm.querySelector<HTMLButtonElement>('button[type="submit"]')
+  if (submitButton) {
+    submitButton.disabled = submitting
+    submitButton.textContent = submitting ? 'Zapisywanie...' : 'Zapisz zmiany'
   }
 }
