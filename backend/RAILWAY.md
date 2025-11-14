@@ -10,13 +10,25 @@ Jeśli widzisz ten błąd na Railway, oznacza to, że nie ustawiłeś zmiennych 
 
 **WAŻNE:** Zmienne środowiskowe muszą być ustawione na poziomie **SERWISU**, nie projektu!
 
+**Krok po kroku z obrazkami:**
+
 1. Zaloguj się do [Railway](https://railway.app)
 2. Otwórz swój projekt
-3. **Kliknij na konkretny serwis** (nie na projekt)
-4. Przejdź do zakładki **"Variables"** (lub **"Settings"** → **"Variables"**)
-5. Dodaj następujące zmienne:
+3. **KLIKNIJ NA KONKRETNY SERWIS** (nie na nazwę projektu u góry!)
+   - Serwis to zazwyczaj nazwa Twojego backendu (np. "backend", "api", itp.)
+   - Kliknij na kartę/box serwisu w projekcie
+4. W menu serwisu znajdź i kliknij **"Variables"** (lub **"Settings"** → **"Variables"**)
+5. Kliknij **"+ New Variable"** lub **"Add Variable"**
+6. Wpisz:
+   - **Name:** `SUPABASE_DB_URL` (dokładnie tak, wielkie litery, podkreślnik)
+   - **Value:** Twój connection string z Supabase
+7. Kliknij **"Add"** lub **"Save"**
+8. Railway automatycznie przebuduje aplikację
 
-**Uwaga:** Jeśli ustawisz zmienne na poziomie projektu, mogą nie być widoczne dla serwisu. Zawsze ustawiaj je na poziomie serwisu!
+**Uwaga:** 
+- ❌ NIE ustawiaj zmiennych w zakładce "Project Variables" (na poziomie projektu)
+- ✅ Ustawiaj zmienne w zakładce "Variables" konkretnego serwisu
+- Jeśli widzisz w logach "Available environment variables count: 61" ale brak SUPABASE_DB_URL, oznacza to że zmienna nie jest dostępna dla serwisu
 
 Wszystkie zmienne środowiskowe są szczegółowo udokumentowane w pliku **`env.example`** w folderze backend.
 
