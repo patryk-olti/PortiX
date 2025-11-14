@@ -30,6 +30,7 @@ const {
   listUsers,
   deleteUser,
   authenticateUser,
+  updateUser,
   ensureInitialUser,
 } = require('./lib/users')
 
@@ -546,7 +547,7 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 app.post('/api/users', async (req, res) => {
-  const { username, password } = req.body ?? {}
+  const { username, password, role, canViewPortfolio, canViewIdeas, canViewClosedPositions, passwordPlaintext } = req.body ?? {}
 
   if (!username || typeof username !== 'string') {
     return res.status(400).json({ error: 'Username is required' })
@@ -556,13 +557,21 @@ app.post('/api/users', async (req, res) => {
   }
 
   try {
-    const user = await createUser({ username, password })
+    const user = await createUser({ 
+      username, 
+      password, 
+      role: role || 'guest',
+      canViewPortfolio: canViewPortfolio ?? false,
+      canViewIdeas: canViewIdeas ?? false,
+      canViewClosedPositions: canViewClosedPositions ?? false,
+      passwordPlaintext: passwordPlaintext || password
+    })
     res.status(201).json({ data: user })
   } catch (error) {
     if (error?.code === 'USERNAME_EXISTS') {
       return res.status(409).json({ error: 'Username already exists' })
     }
-    if (error?.code === 'INVALID_USERNAME' || error?.code === 'INVALID_PASSWORD') {
+    if (error?.code === 'INVALID_USERNAME' || error?.code === 'INVALID_PASSWORD' || error?.code === 'INVALID_ROLE') {
       return res.status(400).json({ error: error.message })
     }
 
@@ -608,6 +617,77 @@ app.get('/api/users/:id', async (req, res) => {
     console.error('Failed to fetch user:', error)
     res.status(500).json({
       error: 'Failed to fetch user',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'Missing user id' })
+    return
+  }
+
+  const { username, password, role, canViewPortfolio, canViewIdeas, canViewClosedPositions, passwordPlaintext } = req.body ?? {}
+
+  try {
+    const updated = await updateUser(id, {
+      username,
+      password,
+      role,
+      canViewPortfolio,
+      canViewIdeas,
+      canViewClosedPositions,
+      passwordPlaintext,
+    })
+    if (!updated) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+    res.json({ data: updated })
+  } catch (error) {
+    if (error?.code === 'INVALID_USERNAME' || error?.code === 'INVALID_PASSWORD' || error?.code === 'INVALID_ROLE') {
+      return res.status(400).json({ error: error.message })
+    }
+
+    console.error('Failed to update user:', error)
+    res.status(500).json({
+      error: 'Failed to update user',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/users/batch-update', async (req, res) => {
+  const { updates } = req.body ?? {}
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'Provide an array of user updates' })
+  }
+
+  try {
+    const results = []
+    for (const update of updates) {
+      const { id, ...fields } = update
+      if (!id) {
+        continue
+      }
+      try {
+        const updated = await updateUser(id, fields)
+        if (updated) {
+          results.push(updated)
+        }
+      } catch (error) {
+        console.error(`Failed to update user ${id}:`, error)
+        // Continue with other updates
+      }
+    }
+    res.json({ data: results, count: results.length })
+  } catch (error) {
+    console.error('Failed to batch update users:', error)
+    res.status(500).json({
+      error: 'Failed to batch update users',
       details: error instanceof Error ? error.message : String(error),
     })
   }

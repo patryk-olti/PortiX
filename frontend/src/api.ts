@@ -760,6 +760,11 @@ export interface LoginPayload {
 export interface UserResponse {
   id: string
   username: string
+  role?: 'guest' | 'user' | 'admin'
+  canViewPortfolio?: boolean
+  canViewIdeas?: boolean
+  canViewClosedPositions?: boolean
+  passwordPlaintext?: string
   createdAt: string
   updatedAt: string
 }
@@ -798,6 +803,11 @@ export async function login(payload: LoginPayload): Promise<UserResponse> {
 export interface CreateUserPayload {
   username: string
   password: string
+  role?: 'guest' | 'user' | 'admin'
+  canViewPortfolio?: boolean
+  canViewIdeas?: boolean
+  canViewClosedPositions?: boolean
+  passwordPlaintext?: string
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<UserResponse> {
@@ -899,5 +909,88 @@ export async function deleteUser(id: string): Promise<void> {
     }
     throw new Error(message)
   }
+}
+
+export interface UpdateUserPayload {
+  username?: string
+  password?: string
+  role?: 'guest' | 'user' | 'admin'
+  canViewPortfolio?: boolean
+  canViewIdeas?: boolean
+  canViewClosedPositions?: boolean
+  passwordPlaintext?: string
+}
+
+export async function updateUser(id: string, payload: UpdateUserPayload): Promise<UserResponse> {
+  const response = await fetch(resolveEndpoint(`/api/users/${encodeURIComponent(id)}`), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to update user')
+        : 'Failed to update user'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse }).data
+}
+
+export interface BatchUpdateUserPayload {
+  id: string
+  username?: string
+  password?: string
+  role?: 'guest' | 'user' | 'admin'
+  canViewPortfolio?: boolean
+  canViewIdeas?: boolean
+  canViewClosedPositions?: boolean
+  passwordPlaintext?: string
+}
+
+export async function batchUpdateUsers(updates: BatchUpdateUserPayload[]): Promise<UserResponse[]> {
+  const response = await fetch(resolveEndpoint('/api/users/batch-update'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ updates }),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to batch update users')
+        : 'Failed to batch update users'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: UserResponse[] }).data
 }
 

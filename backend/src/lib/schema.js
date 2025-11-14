@@ -338,6 +338,11 @@ async function ensureUsersTable() {
       id uuid primary key default gen_random_uuid(),
       username text not null unique,
       password_hash text not null,
+      password_plaintext text,
+      role text not null default 'guest' check (role in ('guest', 'user', 'admin')),
+      can_view_portfolio boolean not null default false,
+      can_view_ideas boolean not null default false,
+      can_view_closed_positions boolean not null default false,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     )
@@ -346,6 +351,58 @@ async function ensureUsersTable() {
   await pool.query(`
     create index if not exists users_username_idx on users (username)
   `)
+
+  // Add new columns if they don't exist (for existing databases)
+  await pool.query(`
+    alter table users
+      add column if not exists password_plaintext text
+  `)
+
+  await pool.query(`
+    alter table users
+      add column if not exists role text default 'guest'
+  `)
+
+  await pool.query(`
+    alter table users
+      add column if not exists can_view_portfolio boolean default false
+  `)
+
+  await pool.query(`
+    alter table users
+      add column if not exists can_view_ideas boolean default false
+  `)
+
+  await pool.query(`
+    alter table users
+      add column if not exists can_view_closed_positions boolean default false
+  `)
+
+  // Update existing users to have admin role if they don't have one set
+  await pool.query(`
+    update users
+    set role = 'admin'
+    where role is null or role = ''
+  `)
+
+  // Add check constraint for role if it doesn't exist
+  if (!isTestEnv) {
+    await pool.query(`
+      do $$
+      begin
+        if not exists (
+          select 1
+          from pg_constraint
+          where conrelid = 'users'::regclass
+            and conname = 'users_role_check'
+        ) then
+          alter table users
+            add constraint users_role_check
+              check (role in ('guest', 'user', 'admin'));
+        end if;
+      end$$
+    `)
+  }
 }
 
 async function ensureSchema() {
