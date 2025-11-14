@@ -405,7 +405,8 @@ export function renderHome(): string {
                 <th>Pozycja</th>
                 <th>Kategoria</th>
                 <th>Cena zakupu</th>
-                <th>Wartość pozycji</th>
+                <th>Wartość pozycji (zakup)</th>
+                <th>Wartość aktualna</th>
                 <th>Aktualny kurs</th>
                 <th>Zwrot</th>
                 <th></th>
@@ -429,9 +430,14 @@ export function renderHome(): string {
                   <td>${position.purchasePrice}</td>
                   <td>
                     <span class="position-value">${position.positionTotalValueLabel ?? '—'}</span>
-                    ${position.positionCurrency || position.positionTotalValueCurrency
+                    ${(position.positionCurrency || position.positionTotalValueCurrency) && 
+                       (position.positionCurrency || position.positionTotalValueCurrency)?.toUpperCase() !== 'PLN'
                       ? `<span class="currency-badge" title="Waluta pozycji">${position.positionCurrency || position.positionTotalValueCurrency}</span>`
                       : ''}
+                    <div class="position-value-hint">(wartość w chwili zakupu)</div>
+                  </td>
+                  <td class="current-value-cell" data-position-id="${position.id}" data-currency="${position.positionCurrency || position.positionTotalValueCurrency || 'PLN'}">
+                    <span class="current-value-loading">Ładowanie...</span>
                   </td>
                   <td>${position.currentPrice}</td>
                   <td class="${
@@ -449,7 +455,7 @@ export function renderHome(): string {
                   )
                   .join('')
               }
-              ${positions.length === 0 ? '<tr class="empty"><td colspan="7">Brak pozycji w portfelu</td></tr>' : ''}
+              ${positions.length === 0 ? '<tr class="empty"><td colspan="8">Brak pozycji w portfelu</td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -889,6 +895,47 @@ function formatPositionType(positionType: 'long' | 'short'): string {
   return positionType === 'short' ? 'SHORT' : 'LONG'
 }
 
+// Funkcja do obliczenia aktualnej wartości pozycji w PLN
+async function calculateCurrentValueInPLN(position: Position): Promise<string> {
+  try {
+    const currentValueEntry = extractCurrentValueEntry(position)
+    
+    if (!currentValueEntry.value || typeof currentValueEntry.value !== 'number') {
+      return '—'
+    }
+
+    const currency = (currentValueEntry.currency || 'PLN').toUpperCase()
+    
+    // Jeśli już jest PLN, zwróć sformatowaną wartość
+    if (currency === 'PLN') {
+      const formatter = new Intl.NumberFormat('pl-PL', {
+        style: 'currency',
+        currency: 'PLN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+      return formatter.format(currentValueEntry.value)
+    }
+
+    // Pobierz kurs waluty i konwertuj do PLN
+    const exchangeRates = await getExchangeRates([currency])
+    const rate = exchangeRates[currency] ?? 1.0
+    const valueInPLN = currentValueEntry.value * rate
+
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: 'PLN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+
+    return formatter.format(valueInPLN)
+  } catch (error) {
+    console.error(`Failed to calculate current value for position ${position.id}:`, error)
+    return '—'
+  }
+}
+
 // Asynchroniczna funkcja do aktualizacji wartości portfela z konwersją walut
 async function updatePortfolioValues(): Promise<void> {
   try {
@@ -926,6 +973,32 @@ async function updatePortfolioValues(): Promise<void> {
         portfolioDescriptor.innerHTML = `<span class="metric-change ${portfolioChangeValue < 0 ? 'negative' : 'positive'}">${formatPercentageChange(portfolioChangeValue)} względem kapitału</span>`
       }
     }
+
+    // Zaktualizuj aktualne wartości pozycji w tabeli
+    const currentValueCells = document.querySelectorAll<HTMLElement>('.current-value-cell')
+    const updatePromises = Array.from(currentValueCells).map(async (cell) => {
+      const positionId = cell.dataset.positionId
+      if (!positionId) {
+        cell.innerHTML = '—'
+        return
+      }
+
+      const position = positions.find(p => p.id === positionId)
+      if (!position) {
+        cell.innerHTML = '—'
+        return
+      }
+
+      try {
+        const currentValue = await calculateCurrentValueInPLN(position)
+        cell.innerHTML = `<span class="current-value">${currentValue}</span>`
+      } catch (error) {
+        console.error(`Failed to update current value for position ${positionId}:`, error)
+        cell.innerHTML = '—'
+      }
+    })
+
+    await Promise.all(updatePromises)
   } catch (error) {
     console.error('Failed to update portfolio values:', error)
     // W przypadku błędu, wartości pozostaną w wersji synchronicznej (tylko PLN)

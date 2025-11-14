@@ -620,6 +620,27 @@ a {
   display: inline-block;
 }
 
+.position-value-hint {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.current-value-cell {
+  min-width: 120px;
+}
+
+.current-value-loading {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.current-value {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
 .portfolio-table tbody tr:last-child td {
   border-bottom: none;
 }
