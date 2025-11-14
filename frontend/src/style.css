@@ -504,7 +504,7 @@ a {
 
 .portfolio-table tbody td {
   color: #e5e9f5;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .portfolio-table tbody tr.placeholder td {
@@ -618,27 +618,30 @@ a {
 
 .position-value {
   display: inline-block;
-}
-
-.position-value-hint {
-  font-size: 0.7rem;
-  color: #94a3b8;
-  margin-top: 0.25rem;
-  font-style: italic;
+  font-size: 0.9rem;
 }
 
 .current-value-cell {
   min-width: 120px;
+  font-size: 0.9rem;
 }
 
 .current-value-loading {
   color: #94a3b8;
   font-style: italic;
+  font-size: 0.85rem;
 }
 
 .current-value {
   font-weight: 600;
   color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+/* Tooltip dla wartości pozycji */
+.position-value[title] {
+  cursor: help;
+  border-bottom: 1px dotted rgba(148, 163, 184, 0.5);
 }
 
 .portfolio-table tbody tr:last-child td {

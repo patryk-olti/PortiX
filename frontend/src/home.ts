@@ -209,6 +209,113 @@ function formatPercentageChange(value: number): string {
   return `${value > 0 ? '+' : '-'}${absolute}%`
 }
 
+// Formatuje wartość pozycji z 2 miejscami po przecinku
+function formatPositionValue(value: string | null | undefined): string {
+  if (!value || typeof value !== 'string') {
+    return '—'
+  }
+
+  // Sprawdź czy wartość zawiera już formatowanie (np. "245,00 PLN" lub "1000,00 USD")
+  // Jeśli tak, zachowaj formatowanie, ale upewnij się że ma 2 miejsca po przecinku
+  const trimmed = value.trim()
+  
+  // Jeśli wartość zawiera liczbę, sformatuj ją
+  const numberMatch = trimmed.match(/^([\d\s,\.]+)/)
+  if (numberMatch) {
+    const numberStr = numberMatch[1].replace(/\s/g, '').replace(',', '.')
+    const numValue = parseFloat(numberStr)
+    if (!Number.isNaN(numValue) && Number.isFinite(numValue)) {
+      const formatter = new Intl.NumberFormat('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+      const formatted = formatter.format(numValue)
+      
+      // Jeśli oryginalna wartość miała walutę, dodaj ją z powrotem
+      const currencyMatch = trimmed.match(/\s*([A-Z]{3})\s*$/)
+      if (currencyMatch) {
+        return `${formatted} ${currencyMatch[1]}`
+      }
+      
+      return formatted
+    }
+  }
+  
+  return trimmed
+}
+
+// Formatuje cenę (zakup lub aktualna) z 2 miejscami po przecinku
+function formatPrice(price: string | null | undefined): string {
+  if (!price || typeof price !== 'string') {
+    return '—'
+  }
+
+  const trimmed = price.trim()
+  
+  // Sprawdź czy cena zawiera liczbę i walutę/jednostkę (np. "422.50 USD" lub "18 250 pkt")
+  // Jeśli zawiera tylko liczbę i walutę (3 litery), sformatuj z 2 miejscami po przecinku
+  const priceMatch = trimmed.match(/^([\d\s,\.]+)\s+([A-Z]{3}|\w+)$/)
+  if (priceMatch) {
+    const numberStr = priceMatch[1].replace(/\s/g, '').replace(',', '.')
+    const numValue = parseFloat(numberStr)
+    const unit = priceMatch[2]
+    
+    if (!Number.isNaN(numValue) && Number.isFinite(numValue)) {
+      const formatter = new Intl.NumberFormat('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+      const formatted = formatter.format(numValue)
+      
+      return `${formatted} ${unit}`
+    }
+  }
+  
+  // Jeśli cena zawiera tylko liczbę (bez jednostki), sformatuj ją
+  const numberOnlyMatch = trimmed.match(/^([\d\s,\.]+)$/)
+  if (numberOnlyMatch) {
+    const numberStr = numberOnlyMatch[1].replace(/\s/g, '').replace(',', '.')
+    const numValue = parseFloat(numberStr)
+    
+    if (!Number.isNaN(numValue) && Number.isFinite(numValue)) {
+      const formatter = new Intl.NumberFormat('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+      return formatter.format(numValue)
+    }
+  }
+  
+  return trimmed
+}
+
+// Formatuje wartość w określonej walucie z 2 miejscami po przecinku
+function formatValueInCurrency(value: number, currency: string): string {
+  if (!Number.isFinite(value)) {
+    return '—'
+  }
+
+  const currencyUpper = currency.toUpperCase()
+  
+  // Dla PLN użyj formatowania z symbolem waluty
+  if (currencyUpper === 'PLN') {
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: 'PLN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return formatter.format(value)
+  }
+  
+  // Dla innych walut użyj prostego formatowania z kodem waluty na końcu
+  const numberFormatter = new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `${numberFormatter.format(value)} ${currencyUpper}`
+}
+
 function extractInvestedEntry(position: Position): MonetaryEntry {
   if (position.positionSizeType === 'capital' && typeof position.positionSizeValue === 'number') {
     return {
@@ -405,7 +512,7 @@ export function renderHome(): string {
                 <th>Pozycja</th>
                 <th>Kategoria</th>
                 <th>Cena zakupu</th>
-                <th>Wartość pozycji (zakup)</th>
+                <th title="Wartość pozycji w chwili zakupu">Wartość pozycji (zakup)</th>
                 <th>Wartość aktualna</th>
                 <th>Aktualny kurs</th>
                 <th>Zwrot</th>
@@ -427,19 +534,14 @@ export function renderHome(): string {
                     </div>
                   </td>
                   <td>${position.categoryName}</td>
-                  <td>${position.purchasePrice}</td>
+                  <td>${formatPrice(position.purchasePrice)}</td>
                   <td>
-                    <span class="position-value">${position.positionTotalValueLabel ?? '—'}</span>
-                    ${(position.positionCurrency || position.positionTotalValueCurrency) && 
-                       (position.positionCurrency || position.positionTotalValueCurrency)?.toUpperCase() !== 'PLN'
-                      ? `<span class="currency-badge" title="Waluta pozycji">${position.positionCurrency || position.positionTotalValueCurrency}</span>`
-                      : ''}
-                    <div class="position-value-hint">(wartość w chwili zakupu)</div>
+                    <span class="position-value" title="Wartość pozycji w chwili zakupu">${formatPositionValue(position.positionTotalValueLabel ?? '—')}</span>
                   </td>
                   <td class="current-value-cell" data-position-id="${position.id}" data-currency="${position.positionCurrency || position.positionTotalValueCurrency || 'PLN'}">
                     <span class="current-value-loading">Ładowanie...</span>
                   </td>
-                  <td>${position.currentPrice}</td>
+                  <td>${formatPrice(position.currentPrice)}</td>
                   <td class="${
                     position.returnValue > 0
                       ? 'positive'
@@ -895,8 +997,8 @@ function formatPositionType(positionType: 'long' | 'short'): string {
   return positionType === 'short' ? 'SHORT' : 'LONG'
 }
 
-// Funkcja do obliczenia aktualnej wartości pozycji w PLN
-async function calculateCurrentValueInPLN(position: Position): Promise<string> {
+// Funkcja do obliczenia aktualnej wartości pozycji w oryginalnej walucie pozycji
+async function calculateCurrentValue(position: Position): Promise<string> {
   try {
     const currentValueEntry = extractCurrentValueEntry(position)
     
@@ -906,30 +1008,8 @@ async function calculateCurrentValueInPLN(position: Position): Promise<string> {
 
     const currency = (currentValueEntry.currency || 'PLN').toUpperCase()
     
-    // Jeśli już jest PLN, zwróć sformatowaną wartość
-    if (currency === 'PLN') {
-      const formatter = new Intl.NumberFormat('pl-PL', {
-        style: 'currency',
-        currency: 'PLN',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-      return formatter.format(currentValueEntry.value)
-    }
-
-    // Pobierz kurs waluty i konwertuj do PLN
-    const exchangeRates = await getExchangeRates([currency])
-    const rate = exchangeRates[currency] ?? 1.0
-    const valueInPLN = currentValueEntry.value * rate
-
-    const formatter = new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: 'PLN',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-
-    return formatter.format(valueInPLN)
+    // Zwróć wartość w oryginalnej walucie pozycji
+    return formatValueInCurrency(currentValueEntry.value, currency)
   } catch (error) {
     console.error(`Failed to calculate current value for position ${position.id}:`, error)
     return '—'
@@ -990,7 +1070,7 @@ async function updatePortfolioValues(): Promise<void> {
       }
 
       try {
-        const currentValue = await calculateCurrentValueInPLN(position)
+        const currentValue = await calculateCurrentValue(position)
         cell.innerHTML = `<span class="current-value">${currentValue}</span>`
       } catch (error) {
         console.error(`Failed to update current value for position ${positionId}:`, error)
