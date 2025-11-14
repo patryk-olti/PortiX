@@ -37,7 +37,6 @@ export function renderIdeaDetails(ideaId: string): string {
         <a href="#/status">Status projektu</a>
         <a href="#">Dokumentacja</a>
         <a href="#">Kontakt</a>
-        <a href="#/login">Logowanie</a>
       </nav>
     </footer>
   `
