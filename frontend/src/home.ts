@@ -251,11 +251,18 @@ export function renderHome(): string {
       <div class="menu-overlay" id="menu-overlay"></div>
     </header>
     <main class="page">
-      ${canViewPortfolio ? `
+      <section class="project-intro">
+        <div class="section-header">
+          <h1>PortiX Analytics</h1>
+          <p>Platforma analityczna do zarządzania portfelem inwestycyjnym. PortiX umożliwia śledzenie pozycji, analizę techniczną oraz zarządzanie pomysłami inwestycyjnymi w jednym miejscu.</p>
+        </div>
+      </section>
+
       <section class="portfolio">
         <div class="section-header">
           <h2>Stan portfela</h2>
         </div>
+        ${canViewPortfolio ? `
         <div class="portfolio-overview">
           <article class="metric">
             <span class="label">Wartość portfela</span>
@@ -329,20 +336,28 @@ export function renderHome(): string {
             </tbody>
           </table>
         </div>
+        ` : `
+        <div class="no-permission-message">
+          <p>Użytkownik nie posiada uprawnień do wyświetlania sekcji portfela.</p>
+        </div>
+        `}
       </section>
-      ` : ''}
 
-      ${canViewIdeas ? `
       <section class="ideas-section" id="ideas-section">
         <div class="section-header">
           <h2>Pomysły</h2>
           <p>Najnowsze pomysły inwestycyjne</p>
         </div>
+        ${canViewIdeas ? `
         <div class="ideas-loading" id="ideas-loading">Ładowanie pomysłów...</div>
         <div class="ideas-grid" id="ideas-grid" hidden></div>
         <p class="empty-state" id="ideas-empty" hidden>Brak dostępnych pomysłów.</p>
+        ` : `
+        <div class="no-permission-message">
+          <p>Użytkownik nie posiada uprawnień do wyświetlania sekcji pomysłów.</p>
+        </div>
+        `}
       </section>
-      ` : ''}
 
       ${canViewClosedPositions ? `
       <section class="recent-closures">
@@ -395,8 +410,12 @@ export function renderHome(): string {
         </div>`
             : '<p class="empty-state">Brak zamkniętych pozycji.</p>'
         }
+        ` : `
+        <div class="no-permission-message">
+          <p>Użytkownik nie posiada uprawnień do wyświetlania sekcji zamkniętych pozycji.</p>
+        </div>
+        `}
       </section>
-      ` : ''}
     </main>
   `
 }

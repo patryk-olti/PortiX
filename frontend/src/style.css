@@ -351,6 +351,36 @@ a {
   color: var(--muted);
 }
 
+.project-intro {
+  margin-bottom: 3rem;
+}
+
+.project-intro .section-header h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.project-intro .section-header p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: rgb(226 232 240 / 0.9);
+}
+
+.no-permission-message {
+  padding: 2rem;
+  text-align: center;
+  background: var(--surface-soft);
+  border-radius: 12px;
+  border: 1px solid rgb(148 163 184 / 0.15);
+  margin: 2rem 0;
+}
+
+.no-permission-message p {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
 .portfolio {
   display: grid;
   gap: 1.75rem;
