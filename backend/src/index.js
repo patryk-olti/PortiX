@@ -34,6 +34,7 @@ const {
   previewQuoteSymbol,
 } = require('./lib/positions')
 const { fetchTradingViewQuotes } = require('./lib/tradingview')
+const { fetchExchangeRates } = require('./lib/providers/nbp')
 const { createNewsItem, IMPORTANCE_VALUES, listNewsItems, updateNewsItem, deleteNewsItem } = require('./lib/news')
 const {
   createIdea,
@@ -159,6 +160,26 @@ app.post('/api/prices', async (req, res) => {
     console.error('Failed to fetch TradingView quotes:', error)
     res.status(502).json({
       error: 'Failed to fetch quotes from TradingView',
+      details: error instanceof Error ? error.message : String(error),
+    })
+  }
+})
+
+app.post('/api/exchange-rates', async (req, res) => {
+  const { currencies } = req.body ?? {}
+
+  if (!Array.isArray(currencies) || !currencies.length) {
+    res.status(400).json({ error: 'Provide an array of currency codes' })
+    return
+  }
+
+  try {
+    const rates = await fetchExchangeRates(currencies)
+    res.json({ data: rates })
+  } catch (error) {
+    console.error('Failed to fetch exchange rates:', error)
+    res.status(502).json({
+      error: 'Failed to fetch exchange rates from NBP',
       details: error instanceof Error ? error.message : String(error),
     })
   }

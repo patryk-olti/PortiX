@@ -133,6 +133,10 @@ export interface TradingViewQuoteResponse {
   updatedAt: string
 }
 
+export interface ExchangeRatesResponse {
+  [currencyCode: string]: number
+}
+
 export interface CreatePositionPayload {
   symbol: string
   name?: string
@@ -319,6 +323,37 @@ export async function fetchTradingViewQuotes(
   }
 
   return (json as { data: TradingViewQuoteResponse[] }).data
+}
+
+export async function fetchExchangeRates(currencies: string[]): Promise<ExchangeRatesResponse> {
+  const response = await fetch(resolveEndpoint('/api/exchange-rates'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ currencies }),
+  })
+
+  let json: unknown
+  try {
+    json = await response.json()
+  } catch (_error) {
+    // ignore parse errors, handled below
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof json === 'object' && json && 'error' in json
+        ? String((json as { error?: unknown }).error ?? 'Failed to fetch exchange rates')
+        : 'Failed to fetch exchange rates'
+    throw new Error(message)
+  }
+
+  if (!json || typeof json !== 'object' || !('data' in json)) {
+    throw new Error('Unexpected response from server')
+  }
+
+  return (json as { data: ExchangeRatesResponse }).data
 }
 
 export async function deleteNews(id: string): Promise<void> {

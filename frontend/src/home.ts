@@ -1,6 +1,6 @@
 import { getPositions } from './store'
 import type { Idea, Position } from './types'
-import { fetchIdeas, login } from './api'
+import { fetchIdeas, login, fetchExchangeRates } from './api'
 
 type MonetaryEntry = {
   value?: number | null
@@ -10,13 +10,58 @@ type MonetaryEntry = {
 type AggregatedMonetaryValue = {
   value: number | null
   label: string
-  currency: string | null
+  currency: string
   consistent: boolean
 }
 
-function aggregateMonetaryValue(
+// Cache kursów walut (cache na 1 godzinę)
+let exchangeRatesCache: Record<string, number> | null = null
+let exchangeRatesCacheTime: number | null = null
+const EXCHANGE_RATES_CACHE_TTL = 60 * 60 * 1000 // 1 godzina
+
+async function getExchangeRates(currencies: string[]): Promise<Record<string, number>> {
+  // Sprawdź cache
+  const now = Date.now()
+  if (
+    exchangeRatesCache &&
+    exchangeRatesCacheTime &&
+    now - exchangeRatesCacheTime < EXCHANGE_RATES_CACHE_TTL
+  ) {
+    // Sprawdź czy mamy wszystkie potrzebne kursy
+    const missingCurrencies = currencies.filter(
+      currency => currency && !exchangeRatesCache![currency.toUpperCase()],
+    )
+    if (missingCurrencies.length === 0) {
+      return exchangeRatesCache
+    }
+  }
+
+  try {
+    // Pobierz kursy z backendu
+    const rates = await fetchExchangeRates(currencies)
+    // Zawsze dodaj PLN z kursem 1
+    rates.PLN = 1.0
+    
+    // Zaktualizuj cache
+    exchangeRatesCache = { ...exchangeRatesCache, ...rates }
+    exchangeRatesCacheTime = now
+    
+    return exchangeRatesCache
+  } catch (error) {
+    console.error('Failed to fetch exchange rates:', error)
+    // Zwróć cache jeśli istnieje, nawet jeśli jest przestarzały
+    if (exchangeRatesCache) {
+      return exchangeRatesCache
+    }
+    // Jeśli nie ma cache, zwróć tylko PLN
+    return { PLN: 1.0 }
+  }
+}
+
+// Synchroniczna wersja (używana przy renderowaniu - bez konwersji walut)
+function aggregateMonetaryValueSync(
   entries: MonetaryEntry[],
-  fallbackCurrency: string | null = null,
+  targetCurrency: string = 'PLN',
 ): AggregatedMonetaryValue {
   const normalized = entries
     .map(entry => {
@@ -26,43 +71,108 @@ function aggregateMonetaryValue(
 
       return {
         value: entry.value,
-        currency: entry.currency ?? fallbackCurrency,
+        currency: (entry.currency ?? targetCurrency).toUpperCase(),
       }
     })
-    .filter((entry): entry is { value: number; currency: string | null } => entry !== null)
+    .filter((entry): entry is { value: number; currency: string } => entry !== null)
 
   if (!normalized.length) {
-    return { value: null, label: '—', currency: null, consistent: false }
-  }
-
-  const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
-  const currencies = new Set(
-    normalized.map(entry =>
-      entry.currency != null ? entry.currency : fallbackCurrency != null ? fallbackCurrency : null,
-    ),
-  )
-  const consistent = currencies.size <= 1
-  const [currency] = currencies
-
-  if (consistent && currency) {
     const formatter = new Intl.NumberFormat('pl-PL', {
       style: 'currency',
-      currency,
+      currency: targetCurrency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
-    return { value: total, label: formatter.format(total), currency, consistent: true }
+    return { value: null, label: '—', currency: targetCurrency, consistent: true }
   }
 
-  const numberFormatter = new Intl.NumberFormat('pl-PL', {
+  // Sprawdź czy są różne waluty
+  const uniqueCurrencies = Array.from(new Set(normalized.map(entry => entry.currency)))
+  const hasMultipleCurrencies = uniqueCurrencies.length > 1
+
+  // Jeśli są różne waluty, zwróć "—" (zostanie zaktualizowane asynchronicznie)
+  if (hasMultipleCurrencies) {
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: targetCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return { value: null, label: 'Ładowanie...', currency: targetCurrency, consistent: true }
+  }
+
+  // Jeśli są tylko PLN lub brak walut, sumuj normalnie
+  const total = normalized.reduce((sum, entry) => sum + entry.value, 0)
+
+  const formatter = new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: targetCurrency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
+
   return {
     value: total,
-    label: numberFormatter.format(total),
-    currency: consistent ? (currency ?? null) : null,
-    consistent,
+    label: formatter.format(total),
+    currency: targetCurrency,
+    consistent: true,
+  }
+}
+
+// Asynchroniczna wersja z konwersją walut (używana do aktualizacji wartości)
+async function aggregateMonetaryValue(
+  entries: MonetaryEntry[],
+  targetCurrency: string = 'PLN',
+): Promise<AggregatedMonetaryValue> {
+  const normalized = entries
+    .map(entry => {
+      if (!entry || typeof entry.value !== 'number' || Number.isNaN(entry.value)) {
+        return null
+      }
+
+      return {
+        value: entry.value,
+        currency: (entry.currency ?? targetCurrency).toUpperCase(),
+      }
+    })
+    .filter((entry): entry is { value: number; currency: string } => entry !== null)
+
+  if (!normalized.length) {
+    const formatter = new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: targetCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return { value: null, label: '—', currency: targetCurrency, consistent: true }
+  }
+
+  // Pobierz unikalne waluty
+  const uniqueCurrencies = Array.from(new Set(normalized.map(entry => entry.currency))).filter(Boolean)
+  
+  // Pobierz kursy walut
+  const exchangeRates = await getExchangeRates(uniqueCurrencies)
+
+  // Konwertuj wszystkie wartości do PLN
+  const convertedValues = normalized.map(entry => {
+    const rate = exchangeRates[entry.currency] ?? 1.0
+    return entry.value * rate
+  })
+
+  const total = convertedValues.reduce((sum, value) => sum + value, 0)
+
+  const formatter = new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: targetCurrency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+  return {
+    value: total,
+    label: formatter.format(total),
+    currency: targetCurrency,
+    consistent: true,
   }
 }
 
@@ -203,11 +313,13 @@ export function renderHome(): string {
   const closedPositions = positions.filter(
     position => position.analysis?.positionClosed,
   )
-  const portfolioValueMetric = aggregateMonetaryValue(
+  // Użyj synchronicznej wersji do pierwszego renderowania (tylko PLN)
+  // Wartości zostaną zaktualizowane asynchronicznie po załadowaniu kursów walut
+  const portfolioValueMetric = aggregateMonetaryValueSync(
     positions.map(position => extractCurrentValueEntry(position)),
     'PLN',
   )
-  const investedCapitalMetric = aggregateMonetaryValue(
+  const investedCapitalMetric = aggregateMonetaryValueSync(
     positions.map(position => extractInvestedEntry(position)),
     'PLN',
   )
@@ -315,7 +427,12 @@ export function renderHome(): string {
                   </td>
                   <td>${position.categoryName}</td>
                   <td>${position.purchasePrice}</td>
-                  <td>${position.positionTotalValueLabel ?? '—'}</td>
+                  <td>
+                    <span class="position-value">${position.positionTotalValueLabel ?? '—'}</span>
+                    ${position.positionCurrency || position.positionTotalValueCurrency
+                      ? `<span class="currency-badge" title="Waluta pozycji">${position.positionCurrency || position.positionTotalValueCurrency}</span>`
+                      : ''}
+                  </td>
                   <td>${position.currentPrice}</td>
                   <td class="${
                     position.returnValue > 0
@@ -482,6 +599,11 @@ export function setupHomeHandlers(): void {
       }
     })
     return
+  }
+
+  // Aktualizuj wartości portfela z konwersją walut (asynchronicznie)
+  if (isAuthenticated && canViewPortfolio) {
+    void updatePortfolioValues()
   }
 
   // Setup portfolio filter if user can view portfolio
@@ -765,5 +887,48 @@ function escapeHtml(text: string): string {
 
 function formatPositionType(positionType: 'long' | 'short'): string {
   return positionType === 'short' ? 'SHORT' : 'LONG'
+}
+
+// Asynchroniczna funkcja do aktualizacji wartości portfela z konwersją walut
+async function updatePortfolioValues(): Promise<void> {
+  try {
+    const positions = getPositions()
+    const portfolioValueEntries = positions.map(position => extractCurrentValueEntry(position))
+    const investedCapitalEntries = positions.map(position => extractInvestedEntry(position))
+
+    // Pobierz zaktualizowane wartości z konwersją walut
+    const portfolioValueMetric = await aggregateMonetaryValue(portfolioValueEntries, 'PLN')
+    const investedCapitalMetric = await aggregateMonetaryValue(investedCapitalEntries, 'PLN')
+
+    // Zaktualizuj wartości w DOM
+    const portfolioValueEl = document.querySelector('.portfolio-overview .metric:nth-child(1) .value')
+    const investedCapitalEl = document.querySelector('.portfolio-overview .metric:nth-child(2) .value')
+
+    if (portfolioValueEl) {
+      portfolioValueEl.textContent = portfolioValueMetric.label
+    }
+
+    if (investedCapitalEl) {
+      investedCapitalEl.textContent = investedCapitalMetric.label
+    }
+
+    // Zaktualizuj procent zmiany
+    const comparableTotals =
+      portfolioValueMetric.value !== null &&
+      investedCapitalMetric.value !== null &&
+      Math.abs(investedCapitalMetric.value) > Number.EPSILON
+
+    if (comparableTotals) {
+      const portfolioChangeValue =
+        ((portfolioValueMetric.value ?? 0) / (investedCapitalMetric.value ?? 1) - 1) * 100
+      const portfolioDescriptor = document.querySelector('.portfolio-overview .metric:nth-child(1) .change')
+      if (portfolioDescriptor) {
+        portfolioDescriptor.innerHTML = `<span class="metric-change ${portfolioChangeValue < 0 ? 'negative' : 'positive'}">${formatPercentageChange(portfolioChangeValue)} względem kapitału</span>`
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update portfolio values:', error)
+    // W przypadku błędu, wartości pozostaną w wersji synchronicznej (tylko PLN)
+  }
 }
 
