@@ -1,4 +1,23 @@
-require('dotenv').config()
+// Load environment variables (silently fail if .env doesn't exist - normal in production)
+require('dotenv').config({ silent: true })
+
+// Debug: Log available environment variables (without sensitive values)
+if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_ENV === 'true') {
+  const envKeys = Object.keys(process.env).filter(key => 
+    key.includes('SUPABASE') || 
+    key.includes('CORS') || 
+    key === 'PORT' || 
+    key === 'NODE_ENV'
+  )
+  console.log('Available environment variables:', envKeys.join(', '))
+  console.log('SUPABASE_DB_URL is set:', !!process.env.SUPABASE_DB_URL)
+  if (process.env.SUPABASE_DB_URL) {
+    const url = process.env.SUPABASE_DB_URL
+    const masked = url.substring(0, 20) + '...' + url.substring(url.length - 10)
+    console.log('SUPABASE_DB_URL (masked):', masked)
+  }
+}
+
 const express = require('express')
 const cors = require('cors')
 const { pool } = require('./lib/db')

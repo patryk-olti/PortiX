@@ -8,10 +8,15 @@ Jeśli widzisz ten błąd na Railway, oznacza to, że nie ustawiłeś zmiennych 
 
 ### 1. Ustaw zmienne środowiskowe w Railway
 
+**WAŻNE:** Zmienne środowiskowe muszą być ustawione na poziomie **SERWISU**, nie projektu!
+
 1. Zaloguj się do [Railway](https://railway.app)
 2. Otwórz swój projekt
-3. Przejdź do zakładki **"Variables"** (lub kliknij na serwis → **"Variables"**)
-4. Dodaj następujące zmienne:
+3. **Kliknij na konkretny serwis** (nie na projekt)
+4. Przejdź do zakładki **"Variables"** (lub **"Settings"** → **"Variables"**)
+5. Dodaj następujące zmienne:
+
+**Uwaga:** Jeśli ustawisz zmienne na poziomie projektu, mogą nie być widoczne dla serwisu. Zawsze ustawiaj je na poziomie serwisu!
 
 Wszystkie zmienne środowiskowe są szczegółowo udokumentowane w pliku **`env.example`** w folderze backend.
 
@@ -53,11 +58,37 @@ Jeśli Twój backend jest w folderze `backend/` w monorepo:
 
 ## Troubleshooting
 
-### Problem: Aplikacja nadal nie startuje
+### Problem: Aplikacja nadal nie startuje - `SUPABASE_DB_URL is not defined`
 
-1. **Sprawdź logi** - Railway pokazuje szczegółowe logi w zakładce "Logs"
-2. **Zweryfikuj zmienne** - Upewnij się, że wszystkie zmienne są ustawione poprawnie (bez spacji, cudzysłowów)
-3. **Sprawdź connection string** - Upewnij się, że `SUPABASE_DB_URL` jest poprawny i zawiera wszystkie wymagane parametry
+**Najczęstsze przyczyny:**
+
+1. **Zmienna ustawiona na złym poziomie**
+   - ❌ Zmienna ustawiona na poziomie **projektu** (Project Variables)
+   - ✅ Zmienna musi być ustawiona na poziomie **serwisu** (Service Variables)
+   - **Rozwiązanie:** Kliknij na serwis (nie projekt) → Variables → Dodaj zmienną
+
+2. **Błędna nazwa zmiennej**
+   - Sprawdź, czy nazwa to dokładnie `SUPABASE_DB_URL` (wielkie litery, podkreślnik)
+   - Nie używaj spacji ani innych znaków
+
+3. **Zmienna nie została zapisana**
+   - Po dodaniu zmiennej, upewnij się, że kliknąłeś "Save" lub "Add"
+   - Railway automatycznie przebuduje aplikację po zapisaniu
+
+4. **Sprawdź logi diagnostyczne**
+   - W logach Railway powinieneś zobaczyć:
+     - `Available environment variables: ...` (jeśli DEBUG_ENV=true)
+     - `SUPABASE_DB_URL is set: true/false`
+   - Jeśli widzisz `SUPABASE_DB_URL is set: false`, zmienna nie jest dostępna
+
+5. **Wymuś przebudowę**
+   - Po dodaniu zmiennej, Railway powinien automatycznie przebudować
+   - Jeśli nie, kliknij "Redeploy" w zakładce "Deployments"
+
+**Jak sprawdzić czy zmienna jest ustawiona:**
+- W logach Railway szukaj: `Available environment variables count: X`
+- Jeśli widzisz `No SUPABASE/DATABASE related environment variables found`, zmienna nie jest dostępna
+- Sprawdź czy widzisz inne zmienne Railway (np. `PORT`, `RAILWAY_ENVIRONMENT`)
 
 ### Problem: Błąd połączenia z bazą danych
 

@@ -1,16 +1,40 @@
 const { Pool } = require('pg')
 
+// Debug: Check if environment variable is available
 const connectionUrl = process.env.SUPABASE_DB_URL
 
 if (!connectionUrl) {
+  // Additional debugging info
+  const allEnvKeys = Object.keys(process.env).sort()
+  const relevantKeys = allEnvKeys.filter(key => 
+    key.toUpperCase().includes('SUPABASE') || 
+    key.toUpperCase().includes('DATABASE') ||
+    key.toUpperCase().includes('POSTGRES')
+  )
+  
+  console.error('SUPABASE_DB_URL is not defined!')
+  console.error('Available environment variables count:', allEnvKeys.length)
+  if (relevantKeys.length > 0) {
+    console.error('Relevant environment variables found:', relevantKeys.join(', '))
+  } else {
+    console.error('No SUPABASE/DATABASE related environment variables found')
+  }
+  console.error('Sample of all env keys (first 10):', allEnvKeys.slice(0, 10).join(', '))
+  
   throw new Error(
     'SUPABASE_DB_URL is not defined. Please set it as an environment variable.\n' +
     'For local development: create backend/.env file with SUPABASE_DB_URL=...\n' +
-    'For production (Railway/Render/etc): set SUPABASE_DB_URL in your platform\'s environment variables.'
+    'For production (Railway/Render/etc): set SUPABASE_DB_URL in your platform\'s environment variables.\n' +
+    'Make sure the variable is set at the SERVICE level, not just the project level.'
   )
 }
 
-console.log('Supabase connection URL:', connectionUrl)
+// Mask sensitive parts of URL for logging
+const urlParts = connectionUrl.split('@')
+const maskedUrl = urlParts.length > 1 
+  ? connectionUrl.substring(0, 20) + '***@' + urlParts[1]
+  : connectionUrl.substring(0, 30) + '***'
+console.log('Supabase connection URL (masked):', maskedUrl)
 
 let parsed
 try {
