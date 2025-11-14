@@ -29,6 +29,13 @@ import {
   createIdea,
   updateIdea,
   deleteIdea,
+  fetchUsers,
+  createUser,
+  updateUser,
+  batchUpdateUsers,
+  deleteUser,
+  type UserResponse,
+  type BatchUpdateUserPayload,
 } from './api'
 
 const categoryOptions = [
@@ -49,6 +56,7 @@ const sidebarSections = [
   { id: 'analyses', label: 'Edycja analiz', icon: '📊' },
   { id: 'news', label: 'Aktualności', icon: '📰' },
   { id: 'ideas', label: 'Pomysły', icon: '💡' },
+  { id: 'users', label: 'Użytkownicy', icon: '👥' },
 ] as const
 
 type CategoryOption = (typeof categoryOptions)[number]['value']
@@ -85,7 +93,7 @@ function getStoredActiveSection(): SectionId {
     return 'create'
   }
   const stored = window.sessionStorage.getItem(ACTIVE_SECTION_STORAGE_KEY)
-  if (stored === 'create' || stored === 'analyses' || stored === 'news') {
+  if (stored === 'create' || stored === 'analyses' || stored === 'news' || stored === 'ideas' || stored === 'users') {
     return stored
   }
   return 'create'
@@ -409,6 +417,71 @@ export function renderAdmin(): string {
             </div>
           </div>
         </section>
+
+        <section class="admin-section ${activeSection === 'users' ? 'active' : ''}" data-section="users">
+          <div class="section-header">
+            <h2>Zarządzanie użytkownikami</h2>
+            <p>Dodaj i edytuj użytkowników systemu.</p>
+          </div>
+          
+          <form class="admin-form" id="create-user-form">
+            <div class="form-grid">
+              <label class="form-field">
+                <span>Nazwa użytkownika</span>
+                <input type="text" name="username" required placeholder="np. jan_kowalski" />
+              </label>
+              <label class="form-field">
+                <span>Hasło</span>
+                <input type="password" name="password" required placeholder="Minimum 3 znaki" />
+              </label>
+              <label class="form-field">
+                <span>Rola</span>
+                <select name="role" required>
+                  <option value="guest">Gość</option>
+                  <option value="user">Użytkownik</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-vertical">
+              <label class="form-field toggle-field">
+                <span>Może widzieć portfel</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" name="canViewPortfolio" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </label>
+              <label class="form-field toggle-field">
+                <span>Może widzieć pomysły</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" name="canViewIdeas" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </label>
+              <label class="form-field toggle-field">
+                <span>Może widzieć zamknięte pozycje</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" name="canViewClosedPositions" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </label>
+            </div>
+            <div class="admin-form-actions">
+              <button type="submit" class="primary">Dodaj użytkownika</button>
+            </div>
+          </form>
+
+          <div class="admin-users-table-wrapper">
+            <h3>Lista użytkowników</h3>
+            <div class="admin-users-table-container" id="admin-users-table-container">
+              <p class="loading">Ładowanie użytkowników...</p>
+            </div>
+            <div class="admin-users-actions">
+              <button type="button" class="primary" id="save-users-changes" disabled>Zatwierdź zmiany</button>
+              <button type="button" class="secondary" id="cancel-users-changes" disabled>Anuluj</button>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 
@@ -530,6 +603,8 @@ export function setupAdminHandlers(): void {
   refreshAdminIdeasPreview()
   bindAdminIdeasActions()
   initAdminIdeaModal()
+  setupUsersForm()
+  refreshAdminUsersTable()
   if (!hasInitialNewsSync) {
     void syncStatusUpdatesFromApi()
   }
@@ -2419,5 +2494,325 @@ function setIdeaModalSubmitting(submitting: boolean): void {
   if (submitButton) {
     submitButton.disabled = submitting
     submitButton.textContent = submitting ? 'Zapisywanie...' : 'Zapisz zmiany'
+  }
+}
+
+let usersData: UserResponse[] = []
+let usersChanges: Map<string, Partial<BatchUpdateUserPayload>> = new Map()
+
+function setupUsersForm(): void {
+  const form = document.querySelector<HTMLFormElement>('#create-user-form')
+  if (!form) return
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const formData = new FormData(form)
+    const username = (formData.get('username') as string)?.trim() ?? ''
+    const password = (formData.get('password') as string) ?? ''
+    const role = (formData.get('role') as string) || 'guest'
+    const canViewPortfolio = formData.get('canViewPortfolio') === 'on'
+    const canViewIdeas = formData.get('canViewIdeas') === 'on'
+    const canViewClosedPositions = formData.get('canViewClosedPositions') === 'on'
+
+    if (!username || !password) {
+      alert('Uzupełnij wszystkie wymagane pola.')
+      return
+    }
+
+    try {
+      await createUser({
+        username,
+        password,
+        role: role as 'guest' | 'user' | 'admin',
+        canViewPortfolio,
+        canViewIdeas,
+        canViewClosedPositions,
+        passwordPlaintext: password,
+      })
+      form.reset()
+      await refreshAdminUsersTable()
+    } catch (error) {
+      console.error('Nie udało się utworzyć użytkownika:', error)
+      const message = error instanceof Error ? error.message : 'Nie udało się utworzyć użytkownika.'
+      alert(message)
+    }
+  })
+}
+
+async function refreshAdminUsersTable(): Promise<void> {
+  const container = document.getElementById('admin-users-table-container')
+  if (!container) return
+
+  try {
+    usersData = await fetchUsers(100)
+    console.log('Loaded users data:', usersData.map(u => ({ id: u.id, username: u.username, hasPassword: !!u.passwordPlaintext })))
+    renderUsersTable()
+  } catch (error) {
+    console.error('Nie udało się załadować użytkowników:', error)
+    container.innerHTML = '<p class="error">Nie udało się załadować użytkowników.</p>'
+  }
+}
+
+function renderUsersTable(): void {
+  const container = document.getElementById('admin-users-table-container')
+  if (!container) return
+
+  if (usersData.length === 0) {
+    container.innerHTML = '<p class="empty-state">Brak użytkowników.</p>'
+    return
+  }
+
+  container.innerHTML = `
+    <table class="admin-users-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all-users" /></th>
+          <th>Nazwa użytkownika</th>
+          <th>Rola</th>
+          <th>Hasło</th>
+          <th>Portfel</th>
+          <th>Pomysły</th>
+          <th>Zamknięte</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${usersData
+          .map(
+            user => {
+              const changes = usersChanges.get(user.id) || {}
+              const currentRole = changes.role !== undefined ? changes.role : user.role || 'guest'
+              const currentCanViewPortfolio = changes.canViewPortfolio !== undefined ? changes.canViewPortfolio : user.canViewPortfolio || false
+              const currentCanViewIdeas = changes.canViewIdeas !== undefined ? changes.canViewIdeas : user.canViewIdeas || false
+              const currentCanViewClosedPositions = changes.canViewClosedPositions !== undefined ? changes.canViewClosedPositions : user.canViewClosedPositions || false
+              const currentPassword = changes.passwordPlaintext !== undefined 
+                ? changes.passwordPlaintext 
+                : (user.passwordPlaintext ?? '')
+              const hasChanges = usersChanges.has(user.id)
+
+              return `
+                <tr data-user-id="${user.id}" class="${hasChanges ? 'has-changes' : ''}">
+                  <td>
+                    <input type="checkbox" class="user-select-checkbox" data-user-id="${user.id}" />
+                  </td>
+                  <td>${escapeHtml(user.username)}</td>
+                  <td>
+                    <select class="user-role-select" data-user-id="${user.id}" data-field="role">
+                      <option value="guest" ${currentRole === 'guest' ? 'selected' : ''}>Gość</option>
+                      <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Użytkownik</option>
+                      <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrator</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="password" class="user-password-input" data-user-id="${user.id}" data-field="passwordPlaintext" 
+                           value="${escapeHtml(currentPassword)}" placeholder="Hasło" />
+                  </td>
+                  <td>
+                    <label class="toggle-switch">
+                      <input type="checkbox" class="user-checkbox" data-user-id="${user.id}" data-field="canViewPortfolio" 
+                             ${currentCanViewPortfolio ? 'checked' : ''} />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td>
+                    <label class="toggle-switch">
+                      <input type="checkbox" class="user-checkbox" data-user-id="${user.id}" data-field="canViewIdeas" 
+                             ${currentCanViewIdeas ? 'checked' : ''} />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td>
+                    <label class="toggle-switch">
+                      <input type="checkbox" class="user-checkbox" data-user-id="${user.id}" data-field="canViewClosedPositions" 
+                             ${currentCanViewClosedPositions ? 'checked' : ''} />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td>
+                    <div class="user-actions-cell">
+                      <button type="button" class="view-password-btn-small" data-user-id="${user.id}" data-password="${escapeHtml(currentPassword)}" title="Pokaż hasło">👁️</button>
+                      <button type="button" class="delete-user-btn" data-user-id="${user.id}" title="Usuń użytkownika">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              `
+            },
+          )
+          .join('')}
+      </tbody>
+    </table>
+  `
+
+  setupUsersTableHandlers()
+}
+
+function setupUsersTableHandlers(): void {
+  const selectAllCheckbox = document.getElementById('select-all-users') as HTMLInputElement
+  const userCheckboxes = Array.from(document.querySelectorAll<HTMLInputElement>('.user-select-checkbox'))
+  const roleSelects = Array.from(document.querySelectorAll<HTMLSelectElement>('.user-role-select'))
+  const passwordInputs = Array.from(document.querySelectorAll<HTMLInputElement>('.user-password-input'))
+  const permissionCheckboxes = Array.from(document.querySelectorAll<HTMLInputElement>('.user-checkbox'))
+  const deleteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.delete-user-btn'))
+  const saveButton = document.getElementById('save-users-changes') as HTMLButtonElement
+  const cancelButton = document.getElementById('cancel-users-changes') as HTMLButtonElement
+
+  selectAllCheckbox?.addEventListener('change', (e) => {
+    const checked = (e.target as HTMLInputElement).checked
+    userCheckboxes.forEach(cb => {
+      cb.checked = checked
+    })
+    updateSaveButtonState()
+  })
+
+  userCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      updateSaveButtonState()
+    })
+  })
+
+  roleSelects.forEach(select => {
+    select.addEventListener('change', (e) => {
+      const userId = select.dataset.userId || ''
+      const value = (e.target as HTMLSelectElement).value as 'guest' | 'user' | 'admin'
+      trackUserChange(userId, 'role', value)
+    })
+  })
+
+  passwordInputs.forEach(input => {
+    input.addEventListener('input', (e) => {
+      const userId = input.dataset.userId || ''
+      const value = (e.target as HTMLInputElement).value
+      trackUserChange(userId, 'passwordPlaintext', value)
+      // Update the data-password attribute on view buttons
+      const viewButtons = document.querySelectorAll<HTMLButtonElement>(`.view-password-btn[data-user-id="${userId}"], .view-password-btn-small[data-user-id="${userId}"]`)
+      viewButtons.forEach(btn => {
+        btn.dataset.password = value
+      })
+    })
+  })
+
+  permissionCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const userId = checkbox.dataset.userId || ''
+      const field = checkbox.dataset.field || ''
+      const value = (e.target as HTMLInputElement).checked
+      trackUserChange(userId, field as keyof BatchUpdateUserPayload, value)
+    })
+  })
+
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', async () => {
+      const userId = button.dataset.userId || ''
+      if (!userId || !confirm('Czy na pewno chcesz usunąć tego użytkownika?')) {
+        return
+      }
+
+      try {
+        await deleteUser(userId)
+        await refreshAdminUsersTable()
+      } catch (error) {
+        console.error('Nie udało się usunąć użytkownika:', error)
+        alert('Nie udało się usunąć użytkownika.')
+      }
+    })
+  })
+
+  const viewPasswordButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.view-password-btn, .view-password-btn-small'))
+  viewPasswordButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const passwordInput = document.querySelector<HTMLInputElement>(`.user-password-input[data-user-id="${button.dataset.userId}"]`)
+      if (passwordInput) {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text'
+          button.textContent = '🙈'
+        } else {
+          passwordInput.type = 'password'
+          button.textContent = '👁️'
+        }
+        // Update the data-password attribute with current value
+        button.dataset.password = passwordInput.value
+      } else {
+        const password = button.dataset.password || ''
+        alert(`Hasło: ${password || '(brak)'}`)
+      }
+    })
+  })
+
+  saveButton?.addEventListener('click', async () => {
+    const selectedUserIds = userCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.userId || '')
+    if (selectedUserIds.length === 0) {
+      alert('Zaznacz przynajmniej jednego użytkownika.')
+      return
+    }
+
+    const updates: BatchUpdateUserPayload[] = selectedUserIds
+      .filter(id => usersChanges.has(id))
+      .map(id => ({
+        id,
+        ...usersChanges.get(id)!,
+      }))
+
+    if (updates.length === 0) {
+      alert('Brak zmian do zapisania.')
+      return
+    }
+
+    try {
+      saveButton.disabled = true
+      saveButton.textContent = 'Zapisywanie...'
+      await batchUpdateUsers(updates)
+      usersChanges.clear()
+      await refreshAdminUsersTable()
+      updateSaveButtonState()
+    } catch (error) {
+      console.error('Nie udało się zapisać zmian:', error)
+      alert('Nie udało się zapisać zmian.')
+    } finally {
+      saveButton.disabled = false
+      saveButton.textContent = 'Zatwierdź zmiany'
+    }
+  })
+
+  cancelButton?.addEventListener('click', () => {
+    usersChanges.clear()
+    userCheckboxes.forEach(cb => {
+      cb.checked = false
+    })
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false
+    }
+    refreshAdminUsersTable()
+    updateSaveButtonState()
+  })
+}
+
+function trackUserChange(userId: string, field: keyof BatchUpdateUserPayload, value: unknown): void {
+  if (!usersChanges.has(userId)) {
+    usersChanges.set(userId, { id: userId })
+  }
+  const change = usersChanges.get(userId)!
+  ;(change as Record<string, unknown>)[field] = value
+  
+  // Update row visual state
+  const row = document.querySelector(`tr[data-user-id="${userId}"]`)
+  if (row) {
+    row.classList.add('has-changes')
+  }
+  
+  updateSaveButtonState()
+}
+
+function updateSaveButtonState(): void {
+  const saveButton = document.getElementById('save-users-changes') as HTMLButtonElement
+  const cancelButton = document.getElementById('cancel-users-changes') as HTMLButtonElement
+  const userCheckboxes = Array.from(document.querySelectorAll<HTMLInputElement>('.user-select-checkbox'))
+  const hasSelected = userCheckboxes.some(cb => cb.checked)
+  const hasChanges = usersChanges.size > 0
+
+  if (saveButton) {
+    saveButton.disabled = !hasSelected || !hasChanges
+  }
+  if (cancelButton) {
+    cancelButton.disabled = !hasSelected || !hasChanges
   }
 }
