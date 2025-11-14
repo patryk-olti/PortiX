@@ -3,7 +3,11 @@ const { Pool } = require('pg')
 const connectionUrl = process.env.SUPABASE_DB_URL
 
 if (!connectionUrl) {
-  throw new Error('SUPABASE_DB_URL is not defined. Please set it in backend/.env')
+  throw new Error(
+    'SUPABASE_DB_URL is not defined. Please set it as an environment variable.\n' +
+    'For local development: create backend/.env file with SUPABASE_DB_URL=...\n' +
+    'For production (Railway/Render/etc): set SUPABASE_DB_URL in your platform\'s environment variables.'
+  )
 }
 
 console.log('Supabase connection URL:', connectionUrl)

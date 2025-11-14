@@ -10,4 +10,7 @@ dist/
 .env
 *.env
 .env.local
+# But allow env.example to be committed
+!env.example
+!**/env.example
 
