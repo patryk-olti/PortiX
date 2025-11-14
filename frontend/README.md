@@ -133,5 +133,9 @@ Wszystkie zmienne środowiskowe są udokumentowane w pliku **`env.example`**.
 
 Upewnij się, że backend ma skonfigurowane CORS, aby zezwolić na żądania z domeny frontendu:
 
-- W backendzie, ustaw `CORS_ORIGINS` z URL-em frontendu (np. `https://twoj-frontend.vercel.app`)
+- W backendie, ustaw `CORS_ORIGINS` z URL-em frontendu (np. `https://twoj-frontend.vercel.app`)
 - Lub ustaw `CORS_ALLOW_ALL=true` (niezalecane w produkcji)
+
+### Troubleshooting
+
+Jeśli widzisz błędy typu `ERR_CONNECTION_REFUSED` lub `Failed to fetch`, zobacz **`DEPLOYMENT.md`** dla szczegółowego przewodnika rozwiązywania problemów.

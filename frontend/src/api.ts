@@ -28,6 +28,9 @@ function resolveEndpoint(path: string): string {
 
 function getApiBaseUrl(): string {
   if (EXPLICIT_API_BASE) {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      console.log('[API] Using explicit API base URL:', EXPLICIT_API_BASE)
+    }
     return EXPLICIT_API_BASE
   }
 
@@ -38,10 +41,17 @@ function getApiBaseUrl(): string {
   const { protocol, hostname, port } = window.location
 
   if (port && DEV_FRONTEND_PORTS.has(port)) {
-    return `${protocol}//${hostname}:${DEV_BACKEND_PORT}`
+    const devUrl = `${protocol}//${hostname}:${DEV_BACKEND_PORT}`
+    console.log('[API] Development mode - using local backend:', devUrl)
+    return devUrl
   }
 
-  return window.location.origin
+  const originUrl = window.location.origin
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn('[API] No VITE_API_BASE_URL set - using same origin:', originUrl)
+    console.warn('[API] If backend is on different domain, set VITE_API_BASE_URL environment variable')
+  }
+  return originUrl
 }
 
 function serializeAnalysisPayload(analysis?: TechnicalAnalysis | null): Record<string, unknown> | undefined {
