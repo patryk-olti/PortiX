@@ -23,7 +23,8 @@ function getRoute(): { path: string; params: Record<string, string> } {
 
 let lastRouteKey = ''
 
-function render() {
+// Export render function so it can be called directly if needed
+export function render() {
   try {
     const app = document.querySelector<HTMLDivElement>('#app')
     if (!app) {
@@ -34,7 +35,13 @@ function render() {
     const route = getRoute()
     const routeKey = `${route.path}:${Object.values(route.params).join(':')}`
     const shouldScroll = routeKey !== lastRouteKey
-    console.log('Current route:', route)
+    
+    // Only prevent re-render if route hasn't changed at all
+    // This prevents flickering but always allows navigation
+    // Note: We allow home page to always render to enable navigation from other pages
+    if (routeKey === lastRouteKey && route.path !== '/' && route.path !== '') {
+      return
+    }
 
     if (route.path === 'position' && route.params.id) {
       const html = renderPositionDetails(route.params.id)
@@ -126,10 +133,18 @@ if (document.readyState === 'loading') {
 }
 
 // Listen for hash changes
-window.addEventListener('hashchange', render)
-
-subscribe(() => {
+window.addEventListener('hashchange', () => {
   render()
+})
+
+// Only re-render on store changes if we're on the home page
+// This prevents unnecessary re-renders on other pages that cause flickering
+subscribe(() => {
+  const route = getRoute()
+  // Only re-render home page on store updates
+  if (route.path === '/' || route.path === '') {
+    render()
+  }
 })
 
 async function bootstrapPositions() {

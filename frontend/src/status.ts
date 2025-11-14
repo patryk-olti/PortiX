@@ -53,12 +53,25 @@ export function renderStatus(): string {
 }
 
 export function setupStatusHandlers(): void {
+  // Only setup handlers if we're actually on the status page
+  // Check if status page elements exist
+  const statusPage = document.querySelector<HTMLElement>('.status-page')
+  if (!statusPage) {
+    return
+  }
+  
   const list = document.querySelector<HTMLDivElement>('.status-news-list')
   const prevButton = document.querySelector<HTMLButtonElement>('.status-page-btn.prev')
   const nextButton = document.querySelector<HTMLButtonElement>('.status-page-btn.next')
   const indicator = document.querySelector<HTMLSpanElement>('.status-page-indicator')
 
   if (!list || !prevButton || !nextButton || !indicator) {
+    return
+  }
+  
+  // Verify we're on the status route before setting up handlers
+  const currentHash = window.location.hash
+  if (currentHash !== '#/status' && currentHash !== '#status') {
     return
   }
 
@@ -117,38 +130,62 @@ export function setupStatusHandlers(): void {
     }
   })()
 
-  const actionButtons = Array.from(
-    document.querySelectorAll<HTMLAnchorElement>('.status-action-button')
+  // Handle anchor links (mailto, external links)
+  // Only select <a> elements, not buttons
+  const actionLinks = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>('a.status-action-button')
   )
 
-  actionButtons.forEach(button => {
-    if (button.dataset.external === 'true' || button.href.startsWith('mailto:')) {
+  actionLinks.forEach(link => {
+    // Check if link has href property and skip mailto/external links
+    if (link.href && (link.href.startsWith('mailto:') || link.dataset.external === 'true')) {
+      return
+    }
+    
+    // Skip links that have data-target (those are handled below)
+    if (link.hasAttribute('data-target')) {
       return
     }
 
-    button.addEventListener(
-      'click',
-      event => {
-        event.preventDefault()
-        const target = button.getAttribute('href') || '#/'
-        if (window.location.hash !== target) {
-          window.location.hash = target
-        }
-      },
-      { once: true },
-    )
+    link.addEventListener('click', event => {
+      event.preventDefault()
+      const target = link.getAttribute('href') || '#/'
+      if (window.location.hash !== target) {
+        window.location.hash = target
+      }
+    })
   })
 
+  // Handle navigation buttons with data-target attribute (like "Powrót do strony głównej")
   const navButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.status-action-button[data-target]'),
+    document.querySelectorAll<HTMLButtonElement>('button.status-action-button[data-target]')
   )
-
+  
   navButtons.forEach(button => {
-    button.addEventListener('click', event => {
+    const target = button.getAttribute('data-target')
+    if (!target) {
+      return
+    }
+    
+    // Add click handler directly to the button
+    // Use capture: true and stopImmediatePropagation to prevent other handlers from interfering
+    button.addEventListener('click', (event: MouseEvent) => {
       event.preventDefault()
-      const target = button.dataset.target || '#/'
-      window.location.hash = target
-    })
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+      
+      // Navigate to target by setting hash
+      // This will trigger hashchange event in main.ts which calls render()
+      if (window.location.hash !== target) {
+        window.location.hash = target
+      } else {
+        // If hash is already the target, force a re-render by triggering hashchange manually
+        window.dispatchEvent(new HashChangeEvent('hashchange', {
+          oldURL: window.location.href,
+          newURL: window.location.href
+        }))
+      }
+    }, { capture: true, once: false })
   })
 }
 
