@@ -88,8 +88,12 @@ export function setupLoginHandlers(): void {
       localStorage.setItem('adminAuthenticated', 'true');
       localStorage.setItem('adminUsername', user.username);
       localStorage.setItem('adminUserId', user.id);
+      localStorage.setItem('adminRole', user.role || 'guest');
+      localStorage.setItem('adminCanViewPortfolio', String(user.canViewPortfolio || false));
+      localStorage.setItem('adminCanViewIdeas', String(user.canViewIdeas || false));
+      localStorage.setItem('adminCanViewClosedPositions', String(user.canViewClosedPositions || false));
       localStorage.setItem('adminLastLogin', new Date().toISOString());
-      window.location.hash = '#/admin';
+      window.location.hash = '#/';
     } catch (error) {
       console.error('Login error:', error);
       if (errorDiv) {

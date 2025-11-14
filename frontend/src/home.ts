@@ -1,6 +1,6 @@
 import { getPositions } from './store'
 import type { Idea, Position } from './types'
-import { fetchIdeas } from './api'
+import { fetchIdeas, login } from './api'
 
 type MonetaryEntry = {
   value?: number | null
@@ -137,7 +137,68 @@ function extractCurrentValueEntry(position: Position): MonetaryEntry {
   }
 }
 
+function getUserPermissions() {
+  const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true'
+  const role = localStorage.getItem('adminRole') || 'guest'
+  const canViewPortfolio = localStorage.getItem('adminCanViewPortfolio') === 'true'
+  const canViewIdeas = localStorage.getItem('adminCanViewIdeas') === 'true'
+  const canViewClosedPositions = localStorage.getItem('adminCanViewClosedPositions') === 'true'
+  return { isAuthenticated, role, canViewPortfolio, canViewIdeas, canViewClosedPositions }
+}
+
 export function renderHome(): string {
+  const { isAuthenticated, role, canViewPortfolio, canViewIdeas, canViewClosedPositions } = getUserPermissions()
+  
+  // Jeśli użytkownik nie jest zalogowany, pokaż formularz logowania
+  if (!isAuthenticated) {
+    return `
+      <main class="page login-page-centered">
+        <section class="login-section-centered">
+          <div class="login-container-centered">
+            <div class="login-header">
+              <h1 class="app-name">
+                <span class="app-name-primary">PortiX</span>
+                <span class="app-name-secondary">Analytics</span>
+              </h1>
+              <h2>Logowanie</h2>
+            </div>
+            
+            <form class="login-form" id="home-login-form">
+              <div class="form-group">
+                <label for="home-username">Nazwa użytkownika</label>
+                <input 
+                  type="text" 
+                  id="home-username" 
+                  name="username" 
+                  required 
+                  autocomplete="username"
+                  placeholder="Wprowadź nazwę użytkownika"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="home-password">Hasło</label>
+                <input 
+                  type="password" 
+                  id="home-password" 
+                  name="password" 
+                  required 
+                  autocomplete="current-password"
+                  placeholder="Wprowadź hasło"
+                />
+              </div>
+              
+              <div class="form-error" id="home-login-error" style="display: none;"></div>
+              
+              <button type="submit" class="login-button">Zaloguj się</button>
+            </form>
+          </div>
+        </section>
+      </main>
+    `
+  }
+
+  // Użytkownik jest zalogowany - pokaż odpowiednie sekcje
   const positions = getPositions()
   const closedPositions = positions.filter(
     position => position.analysis?.positionClosed,
@@ -163,25 +224,34 @@ export function renderHome(): string {
     : `<span class="metric-change neutral">${activePositionsLabel}</span>`
   const investedDescriptor =
     positions.length > 0 ? activePositionsLabel : 'Brak danych o kapitale'
+  
+  const adminMenuLink = role === 'admin' ? '<a href="#/admin" class="menu-link">Panel administracyjny</a>' : ''
+  
   return `
+    <header class="main-header">
+      <button type="button" class="hamburger-menu-btn" id="hamburger-menu-btn" aria-label="Menu">
+        <span class="hamburger-icon"></span>
+        <span class="hamburger-icon"></span>
+        <span class="hamburger-icon"></span>
+      </button>
+      <div class="header-logo" id="header-logo">
+        <img src="/logo.svg" alt="PortiX logo" />
+      </div>
+      <nav class="main-nav" id="main-nav">
+        <div class="main-nav-content">
+          <a href="#/status" class="menu-link">Status projektu</a>
+          <a href="#" class="menu-link coming-soon" data-section="dokumentacja" title="Sekcja w przygotowaniu">Dokumentacja</a>
+          <a href="#" class="menu-link coming-soon" data-section="kontakt" title="Sekcja w przygotowaniu">Kontakt</a>
+          ${adminMenuLink}
+        </div>
+        <div class="main-nav-footer">
+          <button type="button" class="menu-link logout-link" id="logout-btn">Wyloguj</button>
+        </div>
+      </nav>
+      <div class="menu-overlay" id="menu-overlay"></div>
+    </header>
     <main class="page">
-      <section class="hero">
-        <h1 class="app-name">
-          <span class="app-name-primary">Panel</span>
-          <span class="app-name-secondary">Analityczny</span>
-        </h1>
-        <p class="hero-subtitle">Techniczne spojrzenie na rynek</p>
-        <p class="lede">
-          Nasze decyzje inwestycyjne opierają się na precyzji analizy technicznej i
-          dogłębnym zrozumieniu mechanizmów rynku. Nieustannie śledzimy zmienność,
-          kierunki przepływu kapitału i poziom ryzyka, by budować portfel odporny na
-          wahania. Stawiamy na strategię, nie przypadek – to fundament naszego
-          podejścia do inwestowania. Nasze analizy mają charakter informacyjny i nie
-          stanowią rekomendacji inwestycyjnych; pokazują wyłącznie naszą metodykę
-          działania, a nie zachętę do uczestnictwa.
-        </p>
-      </section>
-
+      ${canViewPortfolio ? `
       <section class="portfolio">
         <div class="section-header">
           <h2>Stan portfela</h2>
@@ -260,7 +330,9 @@ export function renderHome(): string {
           </table>
         </div>
       </section>
+      ` : ''}
 
+      ${canViewIdeas ? `
       <section class="ideas-section" id="ideas-section">
         <div class="section-header">
           <h2>Pomysły</h2>
@@ -270,7 +342,9 @@ export function renderHome(): string {
         <div class="ideas-grid" id="ideas-grid" hidden></div>
         <p class="empty-state" id="ideas-empty" hidden>Brak dostępnych pomysłów.</p>
       </section>
+      ` : ''}
 
+      ${canViewClosedPositions ? `
       <section class="recent-closures">
         <div class="section-header">
           <h2>Ostatnio zamknięte pozycje</h2>
@@ -322,43 +396,279 @@ export function renderHome(): string {
             : '<p class="empty-state">Brak zamkniętych pozycji.</p>'
         }
       </section>
+      ` : ''}
     </main>
-
-    <footer class="footer">
-      <small>© ${new Date().getFullYear()} Wszystkie prawa zastrzeżone.</small>
-      <nav>
-        <a href="#/status">Status projektu</a>
-        <a href="#">Dokumentacja</a>
-        <a href="#">Kontakt</a>
-        <a href="#/login">Logowanie</a>
-      </nav>
-    </footer>
   `
 }
 
 export function setupHomeHandlers(): void {
-  const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter')
-  const portfolioRows = Array.from(
-    document.querySelectorAll<HTMLTableRowElement>('.portfolio-table tbody tr'),
-  )
+  const { isAuthenticated, canViewPortfolio, canViewIdeas } = getUserPermissions()
 
-  categoryFilter?.addEventListener('change', event => {
-    const value = (event.target as HTMLSelectElement).value
+  // Setup login form if not authenticated
+  if (!isAuthenticated) {
+    const loginForm = document.querySelector<HTMLFormElement>('#home-login-form')
+    const errorDiv = document.querySelector<HTMLDivElement>('#home-login-error')
+    const submitButton = loginForm?.querySelector<HTMLButtonElement>('button[type="submit"]')
 
-    portfolioRows.forEach(row => {
-      if (value === 'all') {
-        row.style.display = ''
+    loginForm?.addEventListener('submit', async (e) => {
+      e.preventDefault()
+
+      if (errorDiv) {
+        errorDiv.style.display = 'none'
+        errorDiv.textContent = ''
+      }
+
+      const formData = new FormData(loginForm)
+      const username = (formData.get('username') as string)?.trim() ?? ''
+      const password = (formData.get('password') as string) ?? ''
+
+      if (!username || !password) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Wypełnij wszystkie pola'
+          errorDiv.style.display = 'block'
+        }
         return
       }
 
-      row.style.display = row.dataset.category === value ? '' : 'none'
+      if (submitButton) {
+        submitButton.disabled = true
+        submitButton.textContent = 'Logowanie...'
+      }
+
+      try {
+        const user = await login({ username, password })
+
+        localStorage.setItem('adminAuthenticated', 'true')
+        localStorage.setItem('adminUsername', user.username)
+        localStorage.setItem('adminUserId', user.id)
+        localStorage.setItem('adminRole', user.role || 'guest')
+        localStorage.setItem('adminCanViewPortfolio', String(user.canViewPortfolio || false))
+        localStorage.setItem('adminCanViewIdeas', String(user.canViewIdeas || false))
+        localStorage.setItem('adminCanViewClosedPositions', String(user.canViewClosedPositions || false))
+        localStorage.setItem('adminLastLogin', new Date().toISOString())
+        localStorage.setItem('lastActivityTime', Date.now().toString())
+        window.location.hash = '#/'
+        window.location.reload()
+      } catch (error) {
+        console.error('Login error:', error)
+        if (errorDiv) {
+          errorDiv.textContent = error instanceof Error ? error.message : 'Wystąpił błąd podczas logowania'
+          errorDiv.style.display = 'block'
+        }
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false
+          submitButton.textContent = 'Zaloguj się'
+        }
+      }
+    })
+    return
+  }
+
+  // Setup portfolio filter if user can view portfolio
+  if (canViewPortfolio) {
+    const categoryFilter = document.querySelector<HTMLSelectElement>('#category-filter')
+    const portfolioRows = Array.from(
+      document.querySelectorAll<HTMLTableRowElement>('.portfolio-table tbody tr'),
+    )
+
+    categoryFilter?.addEventListener('change', event => {
+      const value = (event.target as HTMLSelectElement).value
+
+      portfolioRows.forEach(row => {
+        if (value === 'all') {
+          row.style.display = ''
+          return
+        }
+
+        row.style.display = row.dataset.category === value ? '' : 'none'
+      })
+    })
+  }
+
+  // Load ideas after DOM is ready if user can view ideas
+  if (canViewIdeas) {
+    setTimeout(() => {
+      void loadIdeas()
+    }, 0)
+  }
+
+  // Setup hamburger menu
+  setupHamburgerMenu()
+  
+  // Setup session timeout (30 minutes)
+  setupSessionTimeout()
+}
+
+function closeMenu(): void {
+  const hamburgerBtn = document.getElementById('hamburger-menu-btn')
+  const mainNav = document.getElementById('main-nav')
+  const menuOverlay = document.getElementById('menu-overlay')
+  
+  mainNav?.classList.remove('open')
+  menuOverlay?.classList.remove('open')
+  hamburgerBtn?.classList.remove('active')
+  document.body.classList.remove('menu-open')
+}
+
+function setupHamburgerMenu(): void {
+  const hamburgerBtn = document.getElementById('hamburger-menu-btn')
+  const mainNav = document.getElementById('main-nav')
+  const menuOverlay = document.getElementById('menu-overlay')
+  const logoutBtn = document.getElementById('logout-btn')
+
+  hamburgerBtn?.addEventListener('click', () => {
+    mainNav?.classList.toggle('open')
+    menuOverlay?.classList.toggle('open')
+    hamburgerBtn.classList.toggle('active')
+    document.body.classList.toggle('menu-open')
+  })
+
+  menuOverlay?.addEventListener('click', () => {
+    closeMenu()
+  })
+
+  // Close menu on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mainNav?.classList.contains('open')) {
+      closeMenu()
+    }
+  })
+
+  logoutBtn?.addEventListener('click', () => {
+    if (sessionTimeoutTimer) {
+      clearTimeout(sessionTimeoutTimer)
+      sessionTimeoutTimer = null
+    }
+    localStorage.removeItem('adminAuthenticated')
+    localStorage.removeItem('adminUsername')
+    localStorage.removeItem('adminUserId')
+    localStorage.removeItem('adminRole')
+    localStorage.removeItem('adminCanViewPortfolio')
+    localStorage.removeItem('adminCanViewIdeas')
+    localStorage.removeItem('adminCanViewClosedPositions')
+    localStorage.removeItem('adminLastLogin')
+    localStorage.removeItem('lastActivityTime')
+    window.location.hash = '#/'
+    window.location.reload()
+  })
+
+  // Handle coming soon sections
+  const comingSoonLinks = document.querySelectorAll('.menu-link.coming-soon')
+  comingSoonLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault()
+      const section = link.getAttribute('data-section')
+      const sectionName = section === 'dokumentacja' ? 'Dokumentacja' : 'Kontakt'
+      alert(`${sectionName} nie jest jeszcze gotowa. Pracujemy nad tym!`)
+      closeMenu()
     })
   })
 
-  // Load ideas after DOM is ready
-  setTimeout(() => {
-    void loadIdeas()
-  }, 0)
+  // Close menu when clicking on menu links
+  const menuLinks = document.querySelectorAll('.menu-link:not(.coming-soon)')
+  menuLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      closeMenu()
+    })
+  })
+}
+
+let sessionTimeoutTimer: ReturnType<typeof setTimeout> | null = null
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+
+function updateLastActivityTime(): void {
+  localStorage.setItem('lastActivityTime', Date.now().toString())
+  resetSessionTimeout()
+}
+
+function resetSessionTimeout(): void {
+  if (sessionTimeoutTimer) {
+    clearTimeout(sessionTimeoutTimer)
+  }
+  
+  sessionTimeoutTimer = setTimeout(() => {
+    logoutUser()
+  }, SESSION_TIMEOUT_MS)
+}
+
+function checkSessionExpiry(): boolean {
+  const lastActivityTime = localStorage.getItem('lastActivityTime')
+  if (!lastActivityTime) {
+    return false
+  }
+  
+  const lastActivity = parseInt(lastActivityTime, 10)
+  const now = Date.now()
+  const timeSinceLastActivity = now - lastActivity
+  
+  if (timeSinceLastActivity >= SESSION_TIMEOUT_MS) {
+    return false
+  }
+  
+  return true
+}
+
+function logoutUser(): void {
+  localStorage.removeItem('adminAuthenticated')
+  localStorage.removeItem('adminUsername')
+  localStorage.removeItem('adminUserId')
+  localStorage.removeItem('adminRole')
+  localStorage.removeItem('adminCanViewPortfolio')
+  localStorage.removeItem('adminCanViewIdeas')
+  localStorage.removeItem('adminCanViewClosedPositions')
+  localStorage.removeItem('adminLastLogin')
+  localStorage.removeItem('lastActivityTime')
+  
+  if (sessionTimeoutTimer) {
+    clearTimeout(sessionTimeoutTimer)
+    sessionTimeoutTimer = null
+  }
+  
+  alert('Sesja wygasła z powodu braku aktywności. Zostałeś wylogowany.')
+  window.location.hash = '#/'
+  window.location.reload()
+}
+
+function setupSessionTimeout(): void {
+  // Check if user is authenticated
+  const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true'
+  if (!isAuthenticated) {
+    return
+  }
+  
+  // Check if session has already expired
+  if (!checkSessionExpiry()) {
+    logoutUser()
+    return
+  }
+  
+  // Reset timer based on remaining time
+  const lastActivityTime = localStorage.getItem('lastActivityTime')
+  if (lastActivityTime) {
+    const lastActivity = parseInt(lastActivityTime, 10)
+    const now = Date.now()
+    const timeSinceLastActivity = now - lastActivity
+    const remainingTime = SESSION_TIMEOUT_MS - timeSinceLastActivity
+    
+    if (remainingTime > 0) {
+      sessionTimeoutTimer = setTimeout(() => {
+        logoutUser()
+      }, remainingTime)
+    } else {
+      logoutUser()
+      return
+    }
+  } else {
+    // First time setup
+    updateLastActivityTime()
+  }
+  
+  // Track user activity
+  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+  activityEvents.forEach(event => {
+    document.addEventListener(event, updateLastActivityTime, { passive: true })
+  })
 }
 
 async function loadIdeas(): Promise<void> {
@@ -420,8 +730,11 @@ async function loadIdeas(): Promise<void> {
   } catch (error) {
     console.error('Failed to load ideas:', error)
     loadingEl.hidden = true
+    gridEl.hidden = true
     emptyEl.hidden = false
-    emptyEl.textContent = 'Nie udało się załadować pomysłów.'
+    const errorMessage = error instanceof Error ? error.message : 'Nie udało się załadować pomysłów.'
+    emptyEl.textContent = errorMessage
+    emptyEl.className = 'empty-state error'
   }
 }
 
