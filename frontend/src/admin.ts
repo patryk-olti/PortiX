@@ -34,6 +34,7 @@ import {
   updateUser,
   batchUpdateUsers,
   deleteUser,
+  fetchUser,
   type UserResponse,
   type BatchUpdateUserPayload,
 } from './api'
@@ -52,6 +53,7 @@ const positionTypeOptions = [
 ] as const
 
 const sidebarSections = [
+  { id: 'home', label: 'Strona główna', icon: '🏠' },
   { id: 'create', label: 'Nowa pozycja', icon: '➕' },
   { id: 'analyses', label: 'Edycja analiz', icon: '📊' },
   { id: 'news', label: 'Aktualności', icon: '📰' },
@@ -93,7 +95,7 @@ function getStoredActiveSection(): SectionId {
     return 'create'
   }
   const stored = window.sessionStorage.getItem(ACTIVE_SECTION_STORAGE_KEY)
-  if (stored === 'create' || stored === 'analyses' || stored === 'news' || stored === 'ideas' || stored === 'users') {
+  if (stored === 'home' || stored === 'create' || stored === 'analyses' || stored === 'news' || stored === 'ideas' || stored === 'users') {
     return stored
   }
   return 'create'
@@ -104,7 +106,7 @@ export function renderAdmin(): string {
   const username = localStorage.getItem('adminUsername') || 'Administrator'
 
   if (!isAuthenticated) {
-    window.location.hash = '#/login'
+    window.location.hash = '#/'
     return ''
   }
 
@@ -589,7 +591,15 @@ export function setupAdminHandlers(): void {
   logoutButton?.addEventListener('click', () => {
     localStorage.removeItem('adminAuthenticated')
     localStorage.removeItem('adminUsername')
-    window.location.hash = '#/login'
+    localStorage.removeItem('adminUserId')
+    localStorage.removeItem('adminRole')
+    localStorage.removeItem('adminCanViewPortfolio')
+    localStorage.removeItem('adminCanViewIdeas')
+    localStorage.removeItem('adminCanViewClosedPositions')
+    localStorage.removeItem('adminLastLogin')
+    localStorage.removeItem('lastActivityTime')
+    window.location.hash = '#/'
+    window.location.reload()
   })
 
   setupSidebarNavigation()
@@ -631,6 +641,11 @@ function setupSidebarNavigation() {
   links.forEach(link => {
     link.addEventListener('click', () => {
       const target = link.dataset.target as SectionId | undefined
+      if (target === 'home') {
+        // Navigate to home page
+        window.location.hash = '#/'
+        return
+      }
       if (target) {
         activate(target)
       }
@@ -2739,17 +2754,11 @@ function setupUsersTableHandlers(): void {
   })
 
   saveButton?.addEventListener('click', async () => {
-    const selectedUserIds = userCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.userId || '')
-    if (selectedUserIds.length === 0) {
-      alert('Zaznacz przynajmniej jednego użytkownika.')
-      return
-    }
-
-    const updates: BatchUpdateUserPayload[] = selectedUserIds
-      .filter(id => usersChanges.has(id))
-      .map(id => ({
+    // Get all users with changes, regardless of selection
+    const updates: BatchUpdateUserPayload[] = Array.from(usersChanges.entries())
+      .map(([id, changes]) => ({
         id,
-        ...usersChanges.get(id)!,
+        ...changes,
       }))
 
     if (updates.length === 0) {
@@ -2764,6 +2773,32 @@ function setupUsersTableHandlers(): void {
       usersChanges.clear()
       await refreshAdminUsersTable()
       updateSaveButtonState()
+      
+      // Clear all checkboxes after successful save
+      userCheckboxes.forEach(cb => {
+        cb.checked = false
+      })
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false
+      }
+      
+      // Refresh current user permissions if current user was updated
+      const currentUserId = localStorage.getItem('adminUserId')
+      if (currentUserId && updates.some(u => u.id === currentUserId)) {
+        try {
+          const updatedUser = await fetchUser(currentUserId)
+          localStorage.setItem('adminCanViewPortfolio', String(updatedUser.canViewPortfolio || false))
+          localStorage.setItem('adminCanViewIdeas', String(updatedUser.canViewIdeas || false))
+          localStorage.setItem('adminCanViewClosedPositions', String(updatedUser.canViewClosedPositions || false))
+          // Re-render home page to reflect permission changes
+          if (window.location.hash === '#/' || window.location.hash === '') {
+            const { render } = await import('./main')
+            render()
+          }
+        } catch (error) {
+          console.error('Nie udało się odświeżyć uprawnień użytkownika:', error)
+        }
+      }
     } catch (error) {
       console.error('Nie udało się zapisać zmian:', error)
       alert('Nie udało się zapisać zmian.')
@@ -2805,14 +2840,13 @@ function trackUserChange(userId: string, field: keyof BatchUpdateUserPayload, va
 function updateSaveButtonState(): void {
   const saveButton = document.getElementById('save-users-changes') as HTMLButtonElement
   const cancelButton = document.getElementById('cancel-users-changes') as HTMLButtonElement
-  const userCheckboxes = Array.from(document.querySelectorAll<HTMLInputElement>('.user-select-checkbox'))
-  const hasSelected = userCheckboxes.some(cb => cb.checked)
   const hasChanges = usersChanges.size > 0
 
+  // Enable buttons if there are any changes, regardless of selection
   if (saveButton) {
-    saveButton.disabled = !hasSelected || !hasChanges
+    saveButton.disabled = !hasChanges
   }
   if (cancelButton) {
-    cancelButton.disabled = !hasSelected || !hasChanges
+    cancelButton.disabled = !hasChanges
   }
 }
