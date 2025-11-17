@@ -925,6 +925,7 @@ a {
   width: 100%;
   border-radius: 16px;
   overflow: hidden;
+  margin-bottom: 2.5rem;
 }
 
 .idea-details-image img {
