@@ -777,7 +777,7 @@ function setupCreatePositionForm() {
 
   ;[purchasePriceInput, sizeTypeSelect, currencySelect, capitalInput, unitsInput, pipCountInput, pipValueInput]
     .filter((element): element is HTMLSelectElement | HTMLInputElement => 
-      element instanceof HTMLSelectElement || element instanceof HTMLInputElement
+      element !== null && (element instanceof HTMLSelectElement || element instanceof HTMLInputElement)
     )
     .forEach(element => {
       const eventType = element instanceof HTMLSelectElement ? 'change' : 'input'
