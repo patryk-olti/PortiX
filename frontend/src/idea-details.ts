@@ -24,7 +24,10 @@ export function renderIdeaDetails(_ideaId: string): string {
   return `
     <main class="page">
       <section class="idea-details-section">
-        <div class="idea-details-loading" id="idea-details-loading">Ładowanie szczegółów pomysłu...</div>
+        <div class="idea-details-loading" id="idea-details-loading">
+          <div class="loading-spinner"></div>
+          <p>Ładowanie szczegółów pomysłu...</p>
+        </div>
         <div class="idea-details-content" id="idea-details-content" hidden></div>
         <div class="idea-details-error" id="idea-details-error" hidden></div>
       </section>

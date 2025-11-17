@@ -868,15 +868,47 @@ a {
   gap: 2rem;
 }
 
-.idea-details-loading,
-.idea-details-error {
-  text-align: center;
+.idea-details-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
   padding: 3rem;
+  text-align: center;
   color: var(--muted);
 }
 
+.idea-details-loading .loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(148, 163, 184, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+.idea-details-loading p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .idea-details-error {
+  text-align: center;
+  padding: 3rem;
   color: #ef4444;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .idea-details-header {
