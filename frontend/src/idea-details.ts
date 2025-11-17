@@ -20,7 +20,7 @@ function formatEntryStrategy(strategy: Idea['entryStrategy']): string {
   }
 }
 
-export function renderIdeaDetails(ideaId: string): string {
+export function renderIdeaDetails(_ideaId: string): string {
   return `
     <main class="page">
       <section class="idea-details-section">

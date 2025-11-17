@@ -6,7 +6,6 @@ import {
   replaceStatusUpdates,
   updateStatusUpdate,
   upsertTechnicalAnalysis,
-  removeTechnicalAnalysis,
   applyPositionUpdate,
   replacePositions,
   removePositionFromStore,
@@ -19,7 +18,6 @@ import {
   deleteNews,
   createPosition as createPortfolioPosition,
   updatePositionAnalysis as persistPositionAnalysis,
-  deletePositionAnalysis as removePositionAnalysis,
   fetchPositions as fetchPositionsFromApi,
   deletePosition as deletePortfolioPosition,
   updatePositionMetadata,
@@ -31,7 +29,6 @@ import {
   deleteIdea,
   fetchUsers,
   createUser,
-  updateUser,
   batchUpdateUsers,
   deleteUser,
   fetchUser,
@@ -779,7 +776,9 @@ function setupCreatePositionForm() {
   }
 
   ;[purchasePriceInput, sizeTypeSelect, currencySelect, capitalInput, unitsInput, pipCountInput, pipValueInput]
-    .filter((element): element is HTMLElement => Boolean(element))
+    .filter((element): element is HTMLSelectElement | HTMLInputElement => 
+      element instanceof HTMLSelectElement || element instanceof HTMLInputElement
+    )
     .forEach(element => {
       const eventType = element instanceof HTMLSelectElement ? 'change' : 'input'
       element.addEventListener(eventType, () => {
@@ -951,7 +950,8 @@ function setupCreatePositionForm() {
       })
 
       applyPositionUpdate(createdPosition)
-      const positions = await refreshPositionsFromBackend()
+      await refreshPositionsFromBackend()
+      const positions = getPositions()
       const refreshed = positions.find(item => item.id === createdPosition.id)
 
       const latestQuoteSymbol = refreshed?.quoteSymbol ?? createdPosition.quoteSymbol
@@ -1137,6 +1137,7 @@ function bindAnalysisForm(form: HTMLFormElement) {
     const summary = (formData.get('summary') as string)?.trim()
     const completed = formData.get('completed') === 'on'
     const completionNote = (formData.get('completionNote') as string)?.trim()
+    const completionDateInput = (formData.get('completionDate') as string)?.trim() ?? ''
     const positionClosed = (formData.get('positionClosed') as string) === 'true'
     const positionClosedNote = (formData.get('positionClosedNote') as string)?.trim() ?? ''
     const positionClosedDateExplicit = (formData.get('positionClosedDateInput') as string)?.trim() ?? ''
@@ -1157,7 +1158,7 @@ function bindAnalysisForm(form: HTMLFormElement) {
       return
     }
 
-    if (positionClosed && (!positionClosedNote || (!positionClosedDateExplicit && !positionClosedDateInput))) {
+    if (positionClosed && (!positionClosedNote || (!positionClosedDateExplicit && !completionDateInput))) {
       alert('Dodaj informację oraz datę zamknięcia pozycji.')
       return
     }
@@ -1464,7 +1465,7 @@ function setupStatusForm() {
         summary: news.summary,
       }
 
-      updateStatusUpdate(update)
+      updateStatusUpdate(news.id, update)
       refreshAdminNewsPreview()
       alert('Dodano nową aktualność.')
       form.reset()
@@ -2433,7 +2434,7 @@ function initAdminIdeaModal(): void {
         tradingviewImage = await readFileAsDataURL(imageFile)
       }
 
-      const updated = await updateIdea(id, {
+      await updateIdea(id, {
         symbol,
         market,
         entryLevel,

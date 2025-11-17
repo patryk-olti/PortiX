@@ -1,5 +1,5 @@
 import { getPositions } from './store'
-import type { Idea, Position } from './types'
+import type { Position } from './types'
 import { fetchIdeas, login, fetchExchangeRates } from './api'
 
 type MonetaryEntry = {
@@ -77,12 +77,6 @@ function aggregateMonetaryValueSync(
     .filter((entry): entry is { value: number; currency: string } => entry !== null)
 
   if (!normalized.length) {
-    const formatter = new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: targetCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
     return { value: null, label: '—', currency: targetCurrency, consistent: true }
   }
 
@@ -92,12 +86,6 @@ function aggregateMonetaryValueSync(
 
   // Jeśli są różne waluty, zwróć "—" (zostanie zaktualizowane asynchronicznie)
   if (hasMultipleCurrencies) {
-    const formatter = new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: targetCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
     return { value: null, label: 'Ładowanie...', currency: targetCurrency, consistent: true }
   }
 
@@ -138,12 +126,6 @@ async function aggregateMonetaryValue(
     .filter((entry): entry is { value: number; currency: string } => entry !== null)
 
   if (!normalized.length) {
-    const formatter = new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: targetCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
     return { value: null, label: '—', currency: targetCurrency, consistent: true }
   }
 
