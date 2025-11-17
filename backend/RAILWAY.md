@@ -10,25 +10,58 @@ Jeśli widzisz ten błąd na Railway, oznacza to, że nie ustawiłeś zmiennych 
 
 **WAŻNE:** Zmienne środowiskowe muszą być ustawione na poziomie **SERWISU**, nie projektu!
 
-**Krok po kroku z obrazkami:**
+#### Jak sprawdzić na którym poziomie jesteś?
 
+W Railway są **dwa poziomy**:
+
+1. **Poziom PROJEKTU** (Project):
+   - Widzisz listę wszystkich serwisów w projekcie
+   - W górnej części strony widzisz nazwę projektu
+   - Zakładka **"Variables"** tutaj = zmienne projektu (❌ NIE używaj!)
+
+2. **Poziom SERWISU** (Service):
+   - Widzisz szczegóły jednego konkretnego serwisu
+   - W górnej części strony widzisz nazwę serwisu (np. "backend", "api")
+   - Zakładka **"Variables"** tutaj = zmienne serwisu (✅ TUTAJ ustawiaj!)
+
+#### Jak przejść do poziomu serwisu?
+
+**Metoda 1:**
 1. Zaloguj się do [Railway](https://railway.app)
 2. Otwórz swój projekt
-3. **KLIKNIJ NA KONKRETNY SERWIS** (nie na nazwę projektu u góry!)
-   - Serwis to zazwyczaj nazwa Twojego backendu (np. "backend", "api", itp.)
-   - Kliknij na kartę/box serwisu w projekcie
-4. W menu serwisu znajdź i kliknij **"Variables"** (lub **"Settings"** → **"Variables"**)
-5. Kliknij **"+ New Variable"** lub **"Add Variable"**
-6. Wpisz:
+3. **KLIKNIJ NA KARTĘ/BOX SERWISU** (np. "backend", "api", itp.)
+   - To przeniesie Cię do widoku serwisu
+4. Sprawdź górną część strony - powinieneś widzieć nazwę serwisu, nie projektu
+5. Kliknij zakładkę **"Variables"**
+6. Jeśli widzisz zakładki: Deployments, Variables, Metrics, Settings - to jest poziom serwisu ✅
+
+**Metoda 2:**
+- Jeśli jesteś na poziomie projektu i widzisz listę serwisów
+- Kliknij na nazwę serwisu (np. "backend")
+- To przeniesie Cię do widoku serwisu
+
+#### Ustawianie zmiennej:
+
+1. Upewnij się, że jesteś na poziomie **SERWISU** (widzisz nazwę serwisu u góry)
+2. Kliknij zakładkę **"Variables"**
+3. Kliknij **"+ New Variable"** lub **"Add Variable"**
+4. Wpisz:
    - **Name:** `SUPABASE_DB_URL` (dokładnie tak, wielkie litery, podkreślnik)
    - **Value:** Twój connection string z Supabase
-7. Kliknij **"Add"** lub **"Save"**
-8. Railway automatycznie przebuduje aplikację
+5. Kliknij **"Add"** lub **"Save"**
+6. Railway automatycznie przebuduje aplikację
 
-**Uwaga:** 
-- ❌ NIE ustawiaj zmiennych w zakładce "Project Variables" (na poziomie projektu)
-- ✅ Ustawiaj zmienne w zakładce "Variables" konkretnego serwisu
-- Jeśli widzisz w logach "Available environment variables count: 61" ale brak SUPABASE_DB_URL, oznacza to że zmienna nie jest dostępna dla serwisu
+#### Jak sprawdzić czy jesteś w dobrym miejscu?
+
+✅ **DOBRZE (poziom serwisu):**
+- Widzisz zakładki: Deployments, Variables, Metrics, Settings
+- W górnej części strony widzisz nazwę serwisu (np. "backend")
+- Możesz ustawiać zmienne tutaj
+
+❌ **ŹLE (poziom projektu):**
+- Widzisz listę serwisów w projekcie
+- W górnej części strony widzisz nazwę projektu
+- Zmienne tutaj NIE będą dostępne dla serwisów!
 
 Wszystkie zmienne środowiskowe są szczegółowo udokumentowane w pliku **`env.example`** w folderze backend.
 
