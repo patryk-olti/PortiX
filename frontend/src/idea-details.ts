@@ -56,8 +56,8 @@ export async function setupIdeaDetailsHandlers(ideaId: string): Promise<void> {
 
   try {
     const idea = await fetchIdea(ideaId)
-    loadingEl.hidden = true
-    errorEl.hidden = true
+    loadingEl.style.display = 'none'
+    errorEl.style.display = 'none'
     contentEl.hidden = false
 
     contentEl.innerHTML = `
@@ -102,9 +102,10 @@ export async function setupIdeaDetailsHandlers(ideaId: string): Promise<void> {
     `
   } catch (error) {
     console.error('Failed to load idea details:', error)
-    loadingEl.hidden = true
+    loadingEl.style.display = 'none'
     contentEl.hidden = true
     errorEl.hidden = false
+    errorEl.style.display = 'block'
     errorEl.textContent = error instanceof Error ? error.message : 'Nie udało się załadować szczegółów pomysłu.'
   }
 }
