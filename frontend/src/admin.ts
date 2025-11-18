@@ -56,6 +56,7 @@ const sidebarSections = [
   { id: 'news', label: 'Aktualności', icon: '📰' },
   { id: 'ideas', label: 'Pomysły', icon: '💡' },
   { id: 'users', label: 'Użytkownicy', icon: '👥' },
+  { id: 'assets', label: 'Walory', icon: '📈' },
 ] as const
 
 type CategoryOption = (typeof categoryOptions)[number]['value']
@@ -92,7 +93,7 @@ function getStoredActiveSection(): SectionId {
     return 'create'
   }
   const stored = window.sessionStorage.getItem(ACTIVE_SECTION_STORAGE_KEY)
-  if (stored === 'home' || stored === 'create' || stored === 'analyses' || stored === 'news' || stored === 'ideas' || stored === 'users') {
+  if (stored === 'home' || stored === 'create' || stored === 'analyses' || stored === 'news' || stored === 'ideas' || stored === 'users' || stored === 'assets') {
     return stored
   }
   return 'create'
@@ -481,6 +482,34 @@ export function renderAdmin(): string {
             </div>
           </div>
         </section>
+
+        <section class="admin-section ${activeSection === 'assets' ? 'active' : ''}" data-section="assets">
+          <div class="section-header">
+            <h2>Zarządzanie walorami</h2>
+            <p>Dodaj i zarządzaj walorami z ich URL-ami i komentarzami.</p>
+          </div>
+          
+          <div class="admin-assets-table-wrapper">
+            <div class="admin-assets-actions">
+              <button type="button" class="primary" id="add-asset-btn">Dodaj walor</button>
+            </div>
+            <div class="admin-assets-table-container" id="admin-assets-table-container">
+              <table class="admin-assets-table">
+                <thead>
+                  <tr>
+                    <th>Nazwa waloru</th>
+                    <th>URL</th>
+                    <th>Komentarz</th>
+                    <th>Akcje</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-assets-table-body">
+                  <!-- Wiersze będą dodawane dynamicznie -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 
@@ -612,6 +641,7 @@ export function setupAdminHandlers(): void {
   initAdminIdeaModal()
   setupUsersForm()
   refreshAdminUsersTable()
+  setupAssetsTable()
   if (!hasInitialNewsSync) {
     void syncStatusUpdatesFromApi()
   }
@@ -2850,4 +2880,147 @@ function updateSaveButtonState(): void {
   if (cancelButton) {
     cancelButton.disabled = !hasChanges
   }
+}
+
+// Assets table management
+type Asset = {
+  id: string
+  name: string
+  url: string
+  comment: string
+}
+
+const ASSETS_STORAGE_KEY = 'adminAssets'
+
+function getAssets(): Asset[] {
+  if (typeof window === 'undefined') {
+    return []
+  }
+  const stored = localStorage.getItem(ASSETS_STORAGE_KEY)
+  if (!stored) {
+    return []
+  }
+  try {
+    return JSON.parse(stored) as Asset[]
+  } catch {
+    return []
+  }
+}
+
+function saveAssets(assets: Asset[]): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets))
+}
+
+function setupAssetsTable(): void {
+  renderAssetsTable()
+  
+  const addButton = document.getElementById('add-asset-btn')
+  addButton?.addEventListener('click', () => {
+    addAssetRow()
+  })
+}
+
+function renderAssetsTable(): void {
+  const tbody = document.getElementById('admin-assets-table-body')
+  if (!tbody) return
+
+  const assets = getAssets()
+
+  if (assets.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="empty-state">Brak walorów. Kliknij "Dodaj walor", aby dodać pierwszy.</td>
+      </tr>
+    `
+    return
+  }
+
+  tbody.innerHTML = assets
+    .map(
+      asset => `
+      <tr data-asset-id="${asset.id}">
+        <td>
+          <input type="text" class="asset-name-input" data-asset-id="${asset.id}" value="${escapeHtml(asset.name)}" placeholder="Nazwa waloru" />
+        </td>
+        <td>
+          <input type="url" class="asset-url-input" data-asset-id="${asset.id}" value="${escapeHtml(asset.url)}" placeholder="https://..." />
+        </td>
+        <td>
+          <input type="text" class="asset-comment-input" data-asset-id="${asset.id}" value="${escapeHtml(asset.comment)}" placeholder="Komentarz" />
+        </td>
+        <td>
+          <button type="button" class="delete-asset-btn secondary danger small" data-asset-id="${asset.id}" title="Usuń walor">🗑️</button>
+        </td>
+      </tr>
+    `,
+    )
+    .join('')
+
+  // Setup input handlers
+  const nameInputs = Array.from(document.querySelectorAll<HTMLInputElement>('.asset-name-input'))
+  const urlInputs = Array.from(document.querySelectorAll<HTMLInputElement>('.asset-url-input'))
+  const commentInputs = Array.from(document.querySelectorAll<HTMLInputElement>('.asset-comment-input'))
+  const deleteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.delete-asset-btn'))
+
+  nameInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const assetId = input.dataset.assetId || ''
+      updateAsset(assetId, 'name', input.value)
+    })
+  })
+
+  urlInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const assetId = input.dataset.assetId || ''
+      updateAsset(assetId, 'url', input.value)
+    })
+  })
+
+  commentInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const assetId = input.dataset.assetId || ''
+      updateAsset(assetId, 'comment', input.value)
+    })
+  })
+
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const assetId = button.dataset.assetId || ''
+      if (confirm('Czy na pewno chcesz usunąć ten walor?')) {
+        deleteAsset(assetId)
+      }
+    })
+  })
+}
+
+function addAssetRow(): void {
+  const assets = getAssets()
+  const newAsset: Asset = {
+    id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: '',
+    url: '',
+    comment: '',
+  }
+  assets.push(newAsset)
+  saveAssets(assets)
+  renderAssetsTable()
+}
+
+function updateAsset(assetId: string, field: 'name' | 'url' | 'comment', value: string): void {
+  const assets = getAssets()
+  const asset = assets.find(a => a.id === assetId)
+  if (asset) {
+    asset[field] = value
+    saveAssets(assets)
+  }
+}
+
+function deleteAsset(assetId: string): void {
+  const assets = getAssets()
+  const filtered = assets.filter(a => a.id !== assetId)
+  saveAssets(filtered)
+  renderAssetsTable()
 }
