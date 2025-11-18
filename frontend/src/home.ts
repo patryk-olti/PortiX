@@ -428,6 +428,10 @@ export function renderHome(): string {
   
   const adminMenuLink = role === 'admin' ? '<a href="#/admin" class="menu-link">Panel administracyjny</a>' : ''
   
+  // Pobierz informacje o użytkowniku
+  const username = localStorage.getItem('adminUsername') || 'Użytkownik'
+  const userInitial = username.charAt(0).toUpperCase()
+  
   return `
     <header class="main-header">
       <button type="button" class="hamburger-menu-btn" id="hamburger-menu-btn" aria-label="Menu">
@@ -440,6 +444,13 @@ export function renderHome(): string {
       </div>
       <nav class="main-nav" id="main-nav">
         <div class="main-nav-content">
+          <div class="user-info">
+            <div class="user-avatar">${userInitial}</div>
+            <div class="user-details">
+              <span class="user-name">${username}</span>
+              <span class="user-role">${role === 'admin' ? 'Administrator' : 'Użytkownik'}</span>
+            </div>
+          </div>
           <a href="#/status" class="menu-link">Status projektu</a>
           <a href="#" class="menu-link coming-soon" data-section="dokumentacja" title="Sekcja w przygotowaniu">Dokumentacja</a>
           <a href="#" class="menu-link coming-soon" data-section="kontakt" title="Sekcja w przygotowaniu">Kontakt</a>
