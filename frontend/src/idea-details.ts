@@ -32,16 +32,6 @@ export function renderIdeaDetails(_ideaId: string): string {
         <div class="idea-details-error" id="idea-details-error" hidden></div>
       </section>
     </main>
-
-    <footer class="footer">
-      <small>© ${new Date().getFullYear()} Wszystkie prawa zastrzeżone.</small>
-      <nav>
-        <a href="#/">Strona główna</a>
-        <a href="#/status">Status projektu</a>
-        <a href="#">Dokumentacja</a>
-        <a href="#">Kontakt</a>
-      </nav>
-    </footer>
   `
 }
 
