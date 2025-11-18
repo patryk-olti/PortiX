@@ -28,9 +28,6 @@ function resolveEndpoint(path: string): string {
 
 function getApiBaseUrl(): string {
   if (EXPLICIT_API_BASE) {
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-      console.log('[API] Using explicit API base URL:', EXPLICIT_API_BASE)
-    }
     return EXPLICIT_API_BASE
   }
 
