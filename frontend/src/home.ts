@@ -430,7 +430,7 @@ export function renderHome(): string {
   
   // Pobierz informacje o użytkowniku
   const username = localStorage.getItem('adminUsername') || 'Użytkownik'
-  const userInitial = username.charAt(0).toUpperCase()
+  const userInitial = username.trim().charAt(0).toUpperCase() || 'U'
   
   return `
     <header class="main-header">
@@ -444,19 +444,19 @@ export function renderHome(): string {
       </div>
       <nav class="main-nav" id="main-nav">
         <div class="main-nav-content">
-          <div class="user-info">
-            <div class="user-avatar">${userInitial}</div>
-            <div class="user-details">
-              <span class="user-name">${username}</span>
-              <span class="user-role">${role === 'admin' ? 'Administrator' : 'Użytkownik'}</span>
-            </div>
-          </div>
           <a href="#/status" class="menu-link">Status projektu</a>
           <a href="#" class="menu-link coming-soon" data-section="dokumentacja" title="Sekcja w przygotowaniu">Dokumentacja</a>
           <a href="#" class="menu-link coming-soon" data-section="kontakt" title="Sekcja w przygotowaniu">Kontakt</a>
           ${adminMenuLink}
         </div>
         <div class="main-nav-footer">
+          <div class="user-info-footer">
+            <div class="user-avatar-footer">${userInitial}</div>
+            <div class="user-details-footer">
+              <span class="user-name-footer">${username}</span>
+              <span class="user-role-footer">${role === 'admin' ? 'Administrator' : 'Użytkownik'}</span>
+            </div>
+          </div>
           <button type="button" class="menu-link logout-link" id="logout-btn">Wyloguj</button>
         </div>
       </nav>
