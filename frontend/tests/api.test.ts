@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../src/api'
 
 // Mock fetch globally
-global.fetch = vi.fn()
+const global = globalThis as typeof globalThis & { fetch: typeof fetch }
+global.fetch = vi.fn() as any
 
 describe('API functions', () => {
   beforeEach(() => {
@@ -138,7 +139,7 @@ describe('API functions', () => {
         id: '1',
         title: 'New News',
         summary: 'Summary',
-        importance: 'medium' as const,
+        importance: 'important' as const,
         publishedOn: '2024-01-15',
         createdAt: '2024-01-15',
         updatedAt: '2024-01-15',
@@ -147,7 +148,7 @@ describe('API functions', () => {
       const payload = {
         title: 'New News',
         summary: 'Summary',
-        importance: 'medium' as const,
+        importance: 'important' as const,
         publishedOn: '2024-01-15',
       }
 
@@ -434,6 +435,7 @@ describe('API functions', () => {
         symbol: 'BTCUSDT',
         analysis: {
           trend: 'bullish' as const,
+          targets: {},
           stopLoss: '40000',
           summary: 'Test analysis',
           entryStrategy: 'level' as const,
@@ -444,6 +446,7 @@ describe('API functions', () => {
 
       const analysis = {
         trend: 'bullish' as const,
+        targets: {},
         stopLoss: '40000',
         summary: 'Test analysis',
         entryStrategy: 'level' as const,
