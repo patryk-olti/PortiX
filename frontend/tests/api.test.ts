@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../src/api'
+import type { TechnicalAnalysis } from '../src/types'
 
 // Mock fetch globally
-const global = globalThis as typeof globalThis & { fetch: typeof fetch }
-global.fetch = vi.fn() as any
+vi.stubGlobal('fetch', vi.fn())
 
 describe('API functions', () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockPositions }),
       })
@@ -31,13 +31,13 @@ describe('API functions', () => {
       const result = await api.fetchPositions()
 
       expect(result).toEqual(mockPositions)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/positions'),
       )
     })
 
     it('throws error on failed request', async () => {
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 500,
         json: async () => ({ error: 'Server error' }),
@@ -63,7 +63,7 @@ describe('API functions', () => {
         positionSizeType: 'capital' as const,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockPosition }),
       })
@@ -71,7 +71,7 @@ describe('API functions', () => {
       const result = await api.createPosition(payload)
 
       expect(result).toEqual(mockPosition)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/positions'),
         expect.objectContaining({
           method: 'POST',
@@ -97,7 +97,7 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockNews }),
       })
@@ -120,14 +120,14 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockNews }),
       })
 
       await api.fetchNews(5)
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/news?limit=5'),
       )
     })
@@ -152,7 +152,7 @@ describe('API functions', () => {
         publishedOn: '2024-01-15',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockNews }),
       })
@@ -160,7 +160,7 @@ describe('API functions', () => {
       const result = await api.createNews(payload)
 
       expect(result).toEqual(mockNews)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/news'),
         expect.objectContaining({
           method: 'POST',
@@ -185,7 +185,7 @@ describe('API functions', () => {
         title: 'Updated News',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockNews }),
       })
@@ -193,7 +193,7 @@ describe('API functions', () => {
       const result = await api.updateNews('1', payload)
 
       expect(result).toEqual(mockNews)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/news/1'),
         expect.objectContaining({
           method: 'PUT',
@@ -204,13 +204,13 @@ describe('API functions', () => {
 
   describe('deleteNews', () => {
     it('deletes news successfully', async () => {
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
       })
 
       await api.deleteNews('1')
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/news/1'),
         expect.objectContaining({
           method: 'DELETE',
@@ -233,7 +233,7 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockIdeas }),
       })
@@ -256,7 +256,7 @@ describe('API functions', () => {
         entryStrategy: 'level' as const,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockIdea }),
       })
@@ -264,7 +264,7 @@ describe('API functions', () => {
       const result = await api.fetchIdea('1')
 
       expect(result).toEqual(mockIdea)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/ideas/1'),
       )
     })
@@ -291,7 +291,7 @@ describe('API functions', () => {
         entryStrategy: 'level' as const,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockIdea }),
       })
@@ -318,7 +318,7 @@ describe('API functions', () => {
         description: 'Updated idea',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockIdea }),
       })
@@ -331,13 +331,13 @@ describe('API functions', () => {
 
   describe('deleteIdea', () => {
     it('deletes an idea successfully', async () => {
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
       })
 
       await api.deleteIdea('1')
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/ideas/1'),
         expect.objectContaining({
           method: 'DELETE',
@@ -361,7 +361,7 @@ describe('API functions', () => {
         password: 'testpass',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockUser }),
       })
@@ -369,7 +369,7 @@ describe('API functions', () => {
       const result = await api.login(payload)
 
       expect(result).toEqual(mockUser)
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/login'),
         expect.objectContaining({
           method: 'POST',
@@ -390,7 +390,7 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockUsers }),
       })
@@ -417,7 +417,7 @@ describe('API functions', () => {
         role: 'user' as const,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockUser }),
       })
@@ -444,7 +444,7 @@ describe('API functions', () => {
         },
       }
 
-      const analysis = {
+      const analysis: TechnicalAnalysis = {
         trend: 'bullish' as const,
         targets: {},
         stopLoss: '40000',
@@ -454,7 +454,7 @@ describe('API functions', () => {
         positionClosed: false,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockPosition }),
       })
@@ -473,7 +473,7 @@ describe('API functions', () => {
         analysis: null,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockPosition }),
       })
@@ -491,7 +491,7 @@ describe('API functions', () => {
         slug: 'btcusdt',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockResponse }),
       })
@@ -509,7 +509,7 @@ describe('API functions', () => {
         source: 'auto',
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockResult }),
       })
@@ -535,7 +535,7 @@ describe('API functions', () => {
         },
       ]
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockQuotes }),
       })
@@ -555,7 +555,7 @@ describe('API functions', () => {
         EUR: 4.3,
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      ;(globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockRates }),
       })
