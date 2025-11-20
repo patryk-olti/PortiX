@@ -628,6 +628,7 @@ export function setupAdminHandlers(): void {
     window.location.reload()
   })
 
+  // Setup sidebar navigation first to ensure sections are visible
   setupSidebarNavigation()
   setupCreatePositionForm()
   setupAnalysisSection()
@@ -651,22 +652,55 @@ function setupSidebarNavigation() {
   const links = Array.from(document.querySelectorAll<HTMLButtonElement>('.admin-tab-link'))
   const sections = Array.from(document.querySelectorAll<HTMLElement>('.admin-section'))
 
+  if (links.length === 0 || sections.length === 0) {
+    console.error('Admin navigation: Links or sections not found', { 
+      links: links.length, 
+      sections: sections.length,
+      linksFound: links.map(l => l.dataset.target),
+      sectionsFound: sections.map(s => s.dataset.section)
+    })
+    // Retry after a short delay
+    setTimeout(() => setupSidebarNavigation(), 50)
+    return
+  }
+
   const activate = (target: SectionId) => {
     sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, target)
+    
+    // Update links
     links.forEach(link => {
-      link.classList.toggle('active', link.dataset.target === target)
+      const isActive = link.dataset.target === target
+      if (isActive) {
+        link.classList.add('active')
+      } else {
+        link.classList.remove('active')
+      }
     })
+    
+    // Update sections - remove active from all, then add to target
     sections.forEach(section => {
-      section.classList.toggle('active', section.dataset.section === target)
+      const isActive = section.dataset.section === target
+      if (isActive) {
+        section.classList.add('active')
+      } else {
+        section.classList.remove('active')
+      }
     })
+    
+    // Update root attribute
     const root = document.querySelector<HTMLElement>('.admin-page')
     if (root) {
       root.setAttribute('data-active-section', target)
     }
   }
 
+  // Activate the initial section on page load
+  const initialSection = getStoredActiveSection()
+  activate(initialSection)
+
   links.forEach(link => {
-    link.addEventListener('click', () => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault()
       const target = link.dataset.target as SectionId | undefined
       if (target === 'home') {
         // Navigate to home page
